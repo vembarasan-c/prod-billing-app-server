@@ -1,22 +1,22 @@
-# Use official Eclipse Temurin JDK 21 (Java 21)
 FROM eclipse-temurin:21-jdk
 
-# Set working directory
 WORKDIR /app
 
-# Copy Maven wrapper
+# Copy Maven wrapper files
 COPY mvnw .
-COPY .mvn .mvn
+COPY mvnw.cmd .
 
-# Copy pom.xml and download dependencies first (cache layer)
+# Copy only pom.xml first for dependency caching
 COPY pom.xml .
-RUN ./mvnw dependency:go-offline
 
-# Copy full source
-COPY src src
+# Download dependencies (skip tests)
+RUN ./mvnw dependency:go-offline -B || true
 
-# Build your app
-RUN ./mvnw package -DskipTests
+# Copy the full project
+COPY src ./src
 
-# Run the app
+# Build the Spring Boot application
+RUN ./mvnw clean package -DskipTests
+
+# Run the application
 CMD ["java", "-jar", "target/*.jar"]
