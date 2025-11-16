@@ -1,25 +1,22 @@
-FROM eclipse-temurin:17-jdk
+# Use official Eclipse Temurin JDK 21 (Java 21)
+FROM eclipse-temurin:21-jdk
 
 # Set working directory
 WORKDIR /app
 
-# Copy the Maven wrapper & pom.xml
+# Copy Maven wrapper
 COPY mvnw .
-COPY mvnw.cmd .
 COPY .mvn .mvn
-COPY pom.xml .
 
-# Download dependencies (cached)
+# Copy pom.xml and download dependencies first (cache layer)
+COPY pom.xml .
 RUN ./mvnw dependency:go-offline
 
-# Copy source code
+# Copy full source
 COPY src src
 
-# Build the application
-RUN ./mvnw clean package -DskipTests
+# Build your app
+RUN ./mvnw package -DskipTests
 
-# Expose port
-EXPOSE 8080
-
-# Run jar file
+# Run the app
 CMD ["java", "-jar", "target/*.jar"]
