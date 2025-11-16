@@ -6,6 +6,9 @@ WORKDIR /app
 COPY mvnw .
 COPY mvnw.cmd .
 
+# Give execute permission to Maven wrapper
+RUN chmod +x mvnw
+
 # Copy only pom.xml first for dependency caching
 COPY pom.xml .
 
