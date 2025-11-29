@@ -44,7 +44,6 @@ public class ItemEntity {
     @UpdateTimestamp
     private Timestamp updatedAt;
 
-    private String imgUrl;
     @ManyToOne
     @JoinColumn(name = "category_id", nullable = false)
     @OnDelete(action = OnDeleteAction.RESTRICT)

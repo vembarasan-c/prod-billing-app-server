@@ -1,5 +1,5 @@
 package in.vembarasan.billingsoftware.io;
 
 public enum PaymentMethod {
-    CASH, UPI
+    CASH, UPI, CARD,
 }
