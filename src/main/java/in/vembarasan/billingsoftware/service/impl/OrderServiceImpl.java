@@ -1,5 +1,6 @@
 package in.vembarasan.billingsoftware.service.impl;
 
+import in.vembarasan.billingsoftware.Exception.InvalidFilterException;
 import in.vembarasan.billingsoftware.entity.OrderEntity;
 import in.vembarasan.billingsoftware.entity.OrderItemEntity;
 import in.vembarasan.billingsoftware.io.*;
@@ -8,10 +9,12 @@ import in.vembarasan.billingsoftware.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -20,17 +23,107 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
     
-    private final OrderEntityRepository orderEntityRepository; 
+    private final OrderEntityRepository orderEntityRepository;
+
+
+//    remove this
+    @Override
+    public ResponseEntity<?> getOrdersByDateFilter(String filter, String startDate, String endDate) {
+
+        LocalDate today = LocalDate.now();
+        LocalDate fromDate = null;
+        LocalDate toDate = null;
+
+        try {
+            switch (filter.toLowerCase()) {
+
+                case "today":
+                    fromDate = today;
+                    toDate = today;
+                    break;
+
+                case "yesterday":
+                    fromDate = today.minusDays(1);
+                    toDate = today.minusDays(1);
+                    break;
+
+                case "this_week":
+                    fromDate = today.with(java.time.DayOfWeek.MONDAY);
+                    toDate = today;
+                    break;
+
+                case "last_30_days":
+                    fromDate = today.minusDays(30);
+                    toDate = today;
+                    break;
+
+                case "annual":
+                    fromDate = today.withDayOfYear(1);
+                    toDate = today;
+                    break;
+
+                case "custom":
+                    if (startDate == null || endDate == null) {
+                        return ResponseEntity
+                                .badRequest()
+                                .body("startDate and endDate are required for custom filter");
+                    }
+                    fromDate = LocalDate.parse(startDate);
+                    toDate = LocalDate.parse(endDate);
+                    break;
+
+                default:
+                    return ResponseEntity
+                            .badRequest()
+                            .body("Invalid filter: " + filter);
+            }
+        } catch (Exception ex) {
+            return ResponseEntity
+                    .badRequest()
+                    .body("Invalid date format. Use YYYY-MM-DD");
+        }
+
+        List<OrderEntity> orders = orderEntityRepository.findOrdersBetweenDates(fromDate, toDate);
+
+
+
+        List<OrderResponse> response = orders.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
+    }
+
+
+//    Main one
+    @Override
+    public ResponseEntity<?>  getOrdersByDateRangeAndPaymentType(String filter, String startDate, String endDate, String paymentType) {
+
+
+        LocalDate[] range = resolveDateRange(filter, startDate, endDate);
+        LocalDate fromDate = range[0];
+        LocalDate toDate = range[1];
+
+        PaymentMethod paymentEnum = resolvePaymentType(paymentType);
+
+        List<OrderEntity> orders = orderEntityRepository.findOrdersByDateRangeAndPayment(fromDate, toDate, paymentEnum);
+
+        List<OrderResponse> response = orders.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
+    }
+
+
+
+
 
     @Override
     public OrderResponse createOrder(OrderRequest request) {
         OrderEntity newOrder = convertToOrderEntity(request);
 
         PaymentDetails paymentDetails = new PaymentDetails();
-//        paymentDetails.setStatus(newOrder.getPaymentMethod() == PaymentMethod.CASH ?
-//                PaymentDetails.PaymentStatus.COMPLETED : PaymentDetails.PaymentStatus.PENDING);
-//        newOrder.setPaymentDetails(paymentDetails);
-
 
         PaymentDetails.PaymentStatus status = null;
 
@@ -160,10 +253,47 @@ public class OrderServiceImpl implements OrderService {
         return orderEntityRepository.sumSalesByDate(date);
     }
 
+
+    @Override
+    public Double totalSalesByDateRange(String filter, String startDate, String endDate, String paymentType) {
+
+        // Reusable date filter
+        LocalDate[] range = resolveDateRange(filter, startDate, endDate);
+        LocalDate fromDate = range[0];
+        LocalDate toDate = range[1];
+
+        // Reusable payment method parser
+        PaymentMethod method = resolvePaymentType(paymentType);
+
+        // DB call
+        return orderEntityRepository.totalSalesByDateRangeAndPaymentType(fromDate, toDate, method);
+    }
+
+
     @Override
     public Long countByOrderDate(LocalDate date) {
         return orderEntityRepository.countByOrderDate(date);
     }
+
+    public Long getOrderCountByDateRange(String filter, String startDate, String endDate, String paymentType) {
+
+        LocalDate[] range = resolveDateRange(filter, startDate, endDate);
+        PaymentMethod method = resolvePaymentType(paymentType);
+
+
+        if (range == null) {
+            // return safe output instead of crashing
+            throw new InvalidFilterException("Invalid date filter");
+        }
+
+
+        return orderEntityRepository.countOrdersByDateRangeAndPaymentType(
+                range[0],
+                range[1],
+                method
+        );
+    }
+
 
     @Override
     public List<OrderResponse> findRecentOrders() {
@@ -176,4 +306,76 @@ public class OrderServiceImpl implements OrderService {
     private boolean verifyRazorpaySignature(String razorpayOrderId, String razorpayPaymentId, String razorpaySignature) {
         return true;
     }
+
+
+
+
+
+
+
+
+    private LocalDate[] resolveDateRange(String filter, String startDate, String endDate) {
+
+        LocalDate today = LocalDate.now();
+        LocalDate fromDate;
+        LocalDate toDate;
+
+        switch (filter.toLowerCase()) {
+
+            case "today":
+                fromDate = today;
+                toDate = today;
+                break;
+
+            case "yesterday":
+                fromDate = today.minusDays(1);
+                toDate = today.minusDays(1);
+                break;
+
+            case "this_week":
+                fromDate = today.with(java.time.DayOfWeek.MONDAY);
+                toDate = today;
+                break;
+
+            case "last_30_days":
+                fromDate = today.minusDays(30);
+                toDate = today;
+                break;
+
+            case "annual":
+                fromDate = today.withDayOfYear(1);
+                toDate = today;
+                break;
+
+            case "custom":
+                if (startDate == null || endDate == null) {
+                    throw new InvalidFilterException("fromDate and toDate are required for custom filter");
+                }
+                fromDate = LocalDate.parse(startDate);
+                toDate = LocalDate.parse(endDate);
+                break;
+
+            default:
+                return null;
+        }
+
+        return new LocalDate[]{fromDate, toDate};
+    }
+
+    private PaymentMethod resolvePaymentType(String paymentType) {
+
+        if (paymentType == null || paymentType.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            return PaymentMethod.valueOf(paymentType.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new InvalidFilterException(
+                    "Invalid paymentType. Valid values: " + Arrays.toString(PaymentMethod.values())
+            );
+        }
+    }
+
+
 }

@@ -5,6 +5,7 @@ import in.vembarasan.billingsoftware.io.OrderResponse;
 import in.vembarasan.billingsoftware.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,6 +33,19 @@ public class OrderController {
     public List<OrderResponse> getLatestOrders() {
         return orderService.getLatestOrders();
     }
+
+
+
+    @GetMapping("/filter-getall")
+    public ResponseEntity<?> getOrdersByDateFilterAndPaymentType(
+            @RequestParam String filter,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String paymentType
+    ) {
+        return  orderService.getOrdersByDateRangeAndPaymentType(filter, startDate, endDate, paymentType);
+    }
+
 }
 
 
