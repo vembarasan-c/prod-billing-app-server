@@ -22,13 +22,21 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public CustomerResponse createCustomer(CustomerRequest request) {
 
-        if (customerRepository.existsByEmail(request.getEmail())) {
-            throw new InvalidFilterException("Email already exists: " + request.getEmail());
+        // Normalize email: trim and convert empty string to null
+        String email = (request.getEmail() != null && !request.getEmail().trim().isEmpty()) 
+                ? request.getEmail().trim() 
+                : null;
+
+        // Check email uniqueness only if email is provided
+        if (email != null) {
+            if (customerRepository.existsByEmail(email)) {
+                throw new InvalidFilterException("Email already exists: " + email);
+            }
         }
 
         CustomerEntity customer = CustomerEntity.builder()
                 .name(request.getName())
-                .email(request.getEmail())
+                .email(email)
                 .phoneNumber(request.getPhoneNumber())
                 .build();
 
@@ -58,15 +66,22 @@ public class CustomerServiceImpl implements CustomerService {
         CustomerEntity customer = customerRepository.findById(id)
                 .orElseThrow(() -> new InvalidFilterException("Customer not found with id: " + id));
 
-        // Optional: Prevent duplicating same email for other customers
-        if (!customer.getEmail().equals(request.getEmail())
-                && customerRepository.existsByEmail(request.getEmail())) {
+        // Normalize email: trim and convert empty string to null
+        String email = (request.getEmail() != null && !request.getEmail().trim().isEmpty()) 
+                ? request.getEmail().trim() 
+                : null;
 
-            throw new InvalidFilterException("Email already exists: " + request.getEmail());
+        // Optional: Prevent duplicating same email for other customers
+        if (email != null) {
+            if (customer.getEmail() == null || !customer.getEmail().equals(email)) {
+                if (customerRepository.existsByEmail(email)) {
+                    throw new InvalidFilterException("Email already exists: " + email);
+                }
+            }
         }
 
         customer.setName(request.getName());
-        customer.setEmail(request.getEmail());
+        customer.setEmail(email);
         customer.setPhoneNumber(request.getPhoneNumber());
 
         CustomerEntity updated = customerRepository.save(customer);
@@ -86,7 +101,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     private CustomerResponse mapToResponse(CustomerEntity customer) {
         return CustomerResponse.builder()
-                .id(customer.getId())
+                .customerId(customer.getId())
                 .name(customer.getName())
                 .email(customer.getEmail())
                 .phoneNumber(customer.getPhoneNumber())

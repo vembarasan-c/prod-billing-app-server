@@ -7,7 +7,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class CustomerResponse {
-    private Long id;
+    private Long customerId;
     private String name;
     private String email;
     private String phoneNumber;

@@ -23,7 +23,7 @@ public class CustomerEntity {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = true, unique = true)
     private String email;
 
     @Column(nullable = false)
