@@ -24,6 +24,13 @@ public class OrderRequest {
     private Double grandTotal;
     private String paymentMethod;
 
+
+
+    private String creditType;
+
+    private Double paidAmount;
+
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor

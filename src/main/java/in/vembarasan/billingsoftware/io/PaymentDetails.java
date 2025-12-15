@@ -20,4 +20,7 @@ public class PaymentDetails {
     public enum PaymentStatus {
         PENDING, COMPLETED, FAILED
     }
+
+    
+
 }

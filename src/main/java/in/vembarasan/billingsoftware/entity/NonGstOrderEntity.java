@@ -13,35 +13,42 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+
+
 @Entity
-@Table(name = "tbl_gst_orders")
+@Builder
+@Table(name = "tbl_non_gst_orders")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
-public class OrderEntity {
+public class NonGstOrderEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String orderId;
 
+    private String orderId;
     private String invoiceNumber;
     private LocalDateTime invoiceDate;
-
 
     private String username;
     private String customerName;
     private String phoneNumber;
+
     private Double subtotal;
     private Double tax;
     private Double grandTotal;
+    private LocalDateTime createdAt;
 
-
+    // For credit type is credit and handle pending amount
     private String creditType;
     private Double paidAmount;
     private Double pendingAmount;
 
-    private LocalDateTime createdAt;
+    @Column(name = "nongst_order_status")
+    private String status;        // PAID / PARTIAL
+
+
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "order_id")
@@ -55,8 +62,9 @@ public class OrderEntity {
 
     @PrePersist
     protected void onCreate() {
-        this.orderId = "ORD"+System.currentTimeMillis();
+        this.orderId = "ORD" + System.currentTimeMillis();
         this.createdAt = LocalDateTime.now();
+        this.invoiceDate = LocalDateTime.now();
     }
-
 }
+

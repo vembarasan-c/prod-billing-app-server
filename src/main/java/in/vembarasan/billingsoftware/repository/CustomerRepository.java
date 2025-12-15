@@ -9,6 +9,9 @@ public interface CustomerRepository extends JpaRepository<CustomerEntity, Long> 
 
     boolean existsByEmail(String email);
 
+    boolean existsByName(String name);
+
+    boolean  existsByNameIgnoreCase(String customerName);
 
 
 }

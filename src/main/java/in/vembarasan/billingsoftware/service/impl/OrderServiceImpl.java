@@ -1,16 +1,21 @@
 package in.vembarasan.billingsoftware.service.impl;
 
-import in.vembarasan.billingsoftware.Exception.InvalidFilterException;
+import in.vembarasan.billingsoftware.Exception.ApiException;
+import in.vembarasan.billingsoftware.entity.CustomerEntity;
+import in.vembarasan.billingsoftware.entity.NonGstOrderEntity;
 import in.vembarasan.billingsoftware.entity.OrderEntity;
 import in.vembarasan.billingsoftware.entity.OrderItemEntity;
 import in.vembarasan.billingsoftware.io.*;
+import in.vembarasan.billingsoftware.repository.CustomerRepository;
+import in.vembarasan.billingsoftware.repository.GstSequenceRepository;
+import in.vembarasan.billingsoftware.repository.NonGstRepository;
 import in.vembarasan.billingsoftware.repository.OrderEntityRepository;
+import in.vembarasan.billingsoftware.service.NonGstOrderService;
 import in.vembarasan.billingsoftware.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -25,74 +30,16 @@ public class OrderServiceImpl implements OrderService {
     
     private final OrderEntityRepository orderEntityRepository;
 
+    private final CustomerRepository customerRepository;
 
-//    remove this
-    @Override
-    public ResponseEntity<?> getOrdersByDateFilter(String filter, String startDate, String endDate) {
+    private final GstSequenceRepository gstRepository;
 
-        LocalDate today = LocalDate.now();
-        LocalDate fromDate = null;
-        LocalDate toDate = null;
+    private final NonGstRepository nonGstRepository;
 
-        try {
-            switch (filter.toLowerCase()) {
+    private final GstInvoiceNumberGenerator invoiceNumberGenerator;
 
-                case "today":
-                    fromDate = today;
-                    toDate = today;
-                    break;
+    private final NonGstOrderService nonGstOrderService;
 
-                case "yesterday":
-                    fromDate = today.minusDays(1);
-                    toDate = today.minusDays(1);
-                    break;
-
-                case "this_week":
-                    fromDate = today.with(java.time.DayOfWeek.MONDAY);
-                    toDate = today;
-                    break;
-
-                case "last_30_days":
-                    fromDate = today.minusDays(30);
-                    toDate = today;
-                    break;
-
-                case "annual":
-                    fromDate = today.withDayOfYear(1);
-                    toDate = today;
-                    break;
-
-                case "custom":
-                    if (startDate == null || endDate == null) {
-                        return ResponseEntity
-                                .badRequest()
-                                .body("startDate and endDate are required for custom filter");
-                    }
-                    fromDate = LocalDate.parse(startDate);
-                    toDate = LocalDate.parse(endDate);
-                    break;
-
-                default:
-                    return ResponseEntity
-                            .badRequest()
-                            .body("Invalid filter: " + filter);
-            }
-        } catch (Exception ex) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("Invalid date format. Use YYYY-MM-DD");
-        }
-
-        List<OrderEntity> orders = orderEntityRepository.findOrdersBetweenDates(fromDate, toDate);
-
-
-
-        List<OrderResponse> response = orders.stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(response);
-    }
 
 
 //    Main one
@@ -121,7 +68,25 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderResponse createOrder(OrderRequest request) {
+
+        String customerName = request.getCustomerName();
+        String phoneNumber = request.getPhoneNumber();
+
+        // if customer does not exist, add new customer
+        boolean isCustomerExist = checkIfCustomerExist(customerName, phoneNumber);
+
+        // check if customer had a pending amount
+
+
+        // GST Bill
         OrderEntity newOrder = convertToOrderEntity(request);
+
+        // Non gst bil
+        NonGstOrderEntity nonGstOrderEntity =  nonGstOrderService.createNonGstOrder(request);
+
+        String invoiceNUmber = invoiceNumberGenerator.generateInvoiceNumber();
+        newOrder.setInvoiceNumber(invoiceNUmber);
+        nonGstOrderEntity.setInvoiceNumber(invoiceNUmber);
 
         PaymentDetails paymentDetails = new PaymentDetails();
 
@@ -145,7 +110,32 @@ public class OrderServiceImpl implements OrderService {
         }
 
         paymentDetails.setStatus(status);
+
+
+        if ("CREDIT".equalsIgnoreCase(request.getCreditType())) {
+
+            paymentDetails.setStatus(PaymentDetails.PaymentStatus.PENDING);
+
+            double pending = request.getGrandTotal() - request.getPaidAmount();
+
+            if (pending <= 0) {
+                newOrder.setPendingAmount(0.0);
+                paymentDetails.setStatus(PaymentDetails.PaymentStatus.COMPLETED);
+
+            } else {
+                newOrder.setPendingAmount(pending);
+                paymentDetails.setStatus(PaymentDetails.PaymentStatus.PENDING);
+            }
+
+
+        }
+
+
+
+
         newOrder.setPaymentDetails(paymentDetails);
+        nonGstOrderEntity.setPaymentDetails(paymentDetails);
+
 
 
         List<OrderItemEntity> orderItems = request.getCartItems().stream()
@@ -153,8 +143,11 @@ public class OrderServiceImpl implements OrderService {
                 .collect(Collectors.toList());
 
         newOrder.setItems(orderItems);
-        
+        nonGstOrderEntity.setItems(orderItems);
+
         newOrder = orderEntityRepository.save(newOrder);
+        NonGstOrderEntity entity =  nonGstRepository.save(nonGstOrderEntity);
+
 
         return convertToResponse(newOrder);
     }
@@ -210,6 +203,7 @@ public class OrderServiceImpl implements OrderService {
                 .paymentMethod(PaymentMethod.valueOf(request.getPaymentMethod()))
                 .build();
     }
+
 
     @Override
     public void deleteOrder(String orderId) {
@@ -283,7 +277,7 @@ public class OrderServiceImpl implements OrderService {
 
         if (range == null) {
             // return safe output instead of crashing
-            throw new InvalidFilterException("Invalid date filter");
+            throw new ApiException("Invalid date filter", HttpStatus.BAD_REQUEST);
         }
 
 
@@ -349,7 +343,7 @@ public class OrderServiceImpl implements OrderService {
 
             case "custom":
                 if (startDate == null || endDate == null) {
-                    throw new InvalidFilterException("fromDate and toDate are required for custom filter");
+                    throw new ApiException("fromDate and toDate are required for custom filter", HttpStatus.BAD_REQUEST);
                 }
                 fromDate = LocalDate.parse(startDate);
                 toDate = LocalDate.parse(endDate);
@@ -371,11 +365,61 @@ public class OrderServiceImpl implements OrderService {
         try {
             return PaymentMethod.valueOf(paymentType.toUpperCase());
         } catch (IllegalArgumentException ex) {
-            throw new InvalidFilterException(
-                    "Invalid paymentType. Valid values: " + Arrays.toString(PaymentMethod.values())
-            );
+            throw new ApiException(
+                    "Invalid paymentType. Valid values: " + Arrays.toString(PaymentMethod.values()), HttpStatus.BAD_REQUEST);
         }
     }
+
+
+
+
+    private static String formatCustomerName(String input) {
+
+        if (input == null || input.trim().isEmpty()) {
+            throw new ApiException(
+                    "Customer name is required",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        String[] words = input.trim().toLowerCase().split("\\s+");
+        StringBuilder formattedName = new StringBuilder();
+
+        for (String word : words) {
+            formattedName
+                    .append(Character.toUpperCase(word.charAt(0)))
+                    .append(word.substring(1))
+                    .append(" ");
+        }
+
+        return formattedName.toString().trim();
+    }
+
+
+    private boolean checkIfCustomerExist(String name, String phoneNumber){
+
+        String formatCustomerName = formatCustomerName(name);
+
+        boolean isExistCustomerName = customerRepository.existsByNameIgnoreCase(formatCustomerName);
+
+        // email valid
+        if(!isExistCustomerName){
+            // Add new customer
+
+            CustomerEntity customer = CustomerEntity.builder()
+                    .name(formatCustomerName)
+                    .email("dds")
+                    .phoneNumber(phoneNumber)
+                    .build();
+
+            CustomerEntity saved = customerRepository.save(customer);
+            return true;
+        }
+
+        return false;
+
+    }
+
 
 
 }

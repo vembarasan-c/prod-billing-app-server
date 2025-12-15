@@ -1,5 +1,6 @@
 package in.vembarasan.billingsoftware.service.impl;
 
+import in.vembarasan.billingsoftware.Exception.ApiException;
 import in.vembarasan.billingsoftware.entity.CategoryEntity;
 import in.vembarasan.billingsoftware.entity.ItemEntity;
 import in.vembarasan.billingsoftware.io.ItemRequest;
@@ -8,6 +9,7 @@ import in.vembarasan.billingsoftware.repository.CategoryRepository;
 import in.vembarasan.billingsoftware.repository.ItemRepository;
 import in.vembarasan.billingsoftware.service.ItemService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,9 +24,19 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     public ItemResponse add(ItemRequest request) {
+
+
+        // Check if itemId already exists
+        boolean isItemExist = itemRepository.existsByItemId(request.getItemId());
+        if (isItemExist) {
+            throw new ApiException("Item already exists with ID: " + request.getItemId(), HttpStatus.CONFLICT);
+        }
+
+
+
         ItemEntity newItem = convertToEntity(request);
         CategoryEntity existingCategory = categoryRepository.findByCategoryId(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category not found: "+request.getCategoryId()));
+                .orElseThrow(() -> new ApiException("Category not found: "+request.getCategoryId(), HttpStatus.NOT_FOUND  ) );
         newItem.setCategory(existingCategory);
         newItem = itemRepository.save(newItem);
         return convertToResponse(newItem);
@@ -66,7 +78,7 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public void deleteItem(String itemId) {
         ItemEntity existingItem = itemRepository.findByItemId(itemId)
-                .orElseThrow(() -> new RuntimeException("Item not found: "+itemId));
+                .orElseThrow(() -> new ApiException("Item not found: "+itemId, HttpStatus.NOT_FOUND));
         itemRepository.delete(existingItem);
     }
 }

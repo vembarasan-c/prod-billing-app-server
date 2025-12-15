@@ -1,5 +1,6 @@
 package in.vembarasan.billingsoftware.controller;
 
+import in.vembarasan.billingsoftware.Exception.ApiException;
 import in.vembarasan.billingsoftware.io.AuthRequest;
 import in.vembarasan.billingsoftware.io.AuthResponse;
 import in.vembarasan.billingsoftware.service.UserService;
@@ -47,7 +48,7 @@ public class AuthController {
         }catch (DisabledException e) {
             throw new Exception("User disabled");
         }catch (BadCredentialsException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email or password is incorrect");
+            throw new ApiException("Email or password is incorrect: "+email, HttpStatus.BAD_REQUEST);
         }
     }
 

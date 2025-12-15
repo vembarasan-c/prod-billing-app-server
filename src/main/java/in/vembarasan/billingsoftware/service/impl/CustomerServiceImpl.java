@@ -1,12 +1,13 @@
 package in.vembarasan.billingsoftware.service.impl;
 
-import in.vembarasan.billingsoftware.Exception.InvalidFilterException;
+import in.vembarasan.billingsoftware.Exception.ApiException;
 import in.vembarasan.billingsoftware.entity.CustomerEntity;
 import in.vembarasan.billingsoftware.io.CustomerRequest;
 import in.vembarasan.billingsoftware.io.CustomerResponse;
 import in.vembarasan.billingsoftware.repository.CustomerRepository;
 import in.vembarasan.billingsoftware.service.CustomerService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -30,7 +31,7 @@ public class CustomerServiceImpl implements CustomerService {
         // Check email uniqueness only if email is provided
         if (email != null) {
             if (customerRepository.existsByEmail(email)) {
-                throw new InvalidFilterException("Email already exists: " + email);
+                throw new ApiException("Email already exists: " + email, HttpStatus.CONFLICT);
             }
         }
 
@@ -41,13 +42,14 @@ public class CustomerServiceImpl implements CustomerService {
                 .build();
 
         CustomerEntity saved = customerRepository.save(customer);
+
         return mapToResponse(saved);
     }
 
     @Override
     public CustomerResponse getCustomer(Long id) {
         CustomerEntity customer = customerRepository.findById(id)
-                .orElseThrow(() -> new InvalidFilterException("Customer not found with id: " + id));
+                .orElseThrow(() -> new ApiException("Customer not found with id: " + id, HttpStatus.NOT_FOUND));
 
         return mapToResponse(customer);
     }
@@ -64,7 +66,7 @@ public class CustomerServiceImpl implements CustomerService {
     public CustomerResponse updateCustomer(Long id, CustomerRequest request) {
 
         CustomerEntity customer = customerRepository.findById(id)
-                .orElseThrow(() -> new InvalidFilterException("Customer not found with id: " + id));
+                .orElseThrow(() -> new ApiException("Customer not found with id: " + id, HttpStatus.NOT_FOUND));
 
         // Normalize email: trim and convert empty string to null
         String email = (request.getEmail() != null && !request.getEmail().trim().isEmpty()) 
@@ -75,7 +77,7 @@ public class CustomerServiceImpl implements CustomerService {
         if (email != null) {
             if (customer.getEmail() == null || !customer.getEmail().equals(email)) {
                 if (customerRepository.existsByEmail(email)) {
-                    throw new InvalidFilterException("Email already exists: " + email);
+                    throw new ApiException("Email already exists: " + email, HttpStatus.CONFLICT);
                 }
             }
         }
@@ -92,7 +94,7 @@ public class CustomerServiceImpl implements CustomerService {
     public String deleteCustomer(Long id) {
 
         CustomerEntity customer = customerRepository.findById(id)
-                .orElseThrow(() -> new InvalidFilterException("Customer not found with id: " + id));
+                .orElseThrow(() -> new ApiException("Customer not found with id: " + id, HttpStatus.NOT_FOUND));
 
         customerRepository.delete(customer);
         return "Customer deleted successfully";

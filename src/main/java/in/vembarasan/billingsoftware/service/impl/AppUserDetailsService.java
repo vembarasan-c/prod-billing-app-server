@@ -1,9 +1,11 @@
 package in.vembarasan.billingsoftware.service.impl;
 
+import in.vembarasan.billingsoftware.Exception.ApiException;
 import in.vembarasan.billingsoftware.entity.UserEntity;
 import in.vembarasan.billingsoftware.io.UserResponse;
 import in.vembarasan.billingsoftware.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,7 +24,7 @@ public class AppUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         UserEntity existingUser = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("Email not found for the email: "+email));
+                .orElseThrow(() -> new ApiException("Email not found for the email: "+email, HttpStatus.NOT_FOUND ));
         return new User(existingUser.getEmail(), existingUser.getPassword(), Collections.singleton(new SimpleGrantedAuthority(existingUser.getRole())));
     }
 }

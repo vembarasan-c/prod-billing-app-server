@@ -29,7 +29,5 @@ public interface OrderService {
 
     List<OrderResponse> findRecentOrders();
 
-    ResponseEntity<?> getOrdersByDateFilter(String filter, String startDate, String endDate);
-
     ResponseEntity<?> getOrdersByDateRangeAndPaymentType(String filter, String startDate, String endDate, String paymentType);
 }
