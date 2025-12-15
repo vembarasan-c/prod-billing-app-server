@@ -113,21 +113,22 @@ public class OrderServiceImpl implements OrderService {
 
 
         if ("CREDIT".equalsIgnoreCase(request.getCreditType())) {
-
+            newOrder.setCreditType(request.getCreditType());
+            double paid = request.getPaidAmount() != null ? request.getPaidAmount() : 0;
+            newOrder.setPaidAmount(paid);
+            
+            // Credit orders always start as PENDING, even if fully paid
+            // Status will be updated to COMPLETED only via CreditManagement page
             paymentDetails.setStatus(PaymentDetails.PaymentStatus.PENDING);
 
-            double pending = request.getGrandTotal() - request.getPaidAmount();
+            double pending = request.getGrandTotal() - paid;
 
             if (pending <= 0) {
                 newOrder.setPendingAmount(0.0);
-                paymentDetails.setStatus(PaymentDetails.PaymentStatus.COMPLETED);
-
             } else {
                 newOrder.setPendingAmount(pending);
-                paymentDetails.setStatus(PaymentDetails.PaymentStatus.PENDING);
             }
-
-
+            // Status remains PENDING for all credit orders
         }
 
 
@@ -167,6 +168,7 @@ public class OrderServiceImpl implements OrderService {
                 .username(newOrder.getUsername())
                 .customerName(newOrder.getCustomerName())
                 .phoneNumber(newOrder.getPhoneNumber())
+                .gstin(newOrder.getGstin())
                 .subtotal(newOrder.getSubtotal())
                 .tax(newOrder.getTax())
                 .grandTotal(newOrder.getGrandTotal())
@@ -176,6 +178,9 @@ public class OrderServiceImpl implements OrderService {
                         .collect(Collectors.toList()))
                 .paymentDetails(newOrder.getPaymentDetails())
                 .createdAt(newOrder.getCreatedAt())
+                .creditType(newOrder.getCreditType())
+                .paidAmount(newOrder.getPaidAmount())
+                .pendingAmount(newOrder.getPendingAmount())
                 .build();
                 
     }
@@ -191,17 +196,25 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderEntity convertToOrderEntity(OrderRequest request) {
-        return OrderEntity.builder()
-
+        OrderEntity.OrderEntityBuilder builder = OrderEntity.builder()
                 .orderId(UUID.randomUUID().toString()) // see later
                 .customerName(request.getCustomerName())
                 .username(request.getUsername())
                 .phoneNumber(request.getPhoneNumber())
+                .gstin(request.getGstin())
                 .subtotal(request.getSubtotal())
                 .tax(request.getTax())
                 .grandTotal(request.getGrandTotal())
-                .paymentMethod(PaymentMethod.valueOf(request.getPaymentMethod()))
-                .build();
+                .paymentMethod(PaymentMethod.valueOf(request.getPaymentMethod()));
+        
+        if (request.getCreditType() != null) {
+            builder.creditType(request.getCreditType());
+        }
+        if (request.getPaidAmount() != null) {
+            builder.paidAmount(request.getPaidAmount());
+        }
+        
+        return builder.build();
     }
 
 
@@ -420,6 +433,34 @@ public class OrderServiceImpl implements OrderService {
 
     }
 
+    @Override
+    public List<OrderResponse> getPendingCreditOrders() {
+        List<OrderEntity> pendingOrders = orderEntityRepository.findPendingCreditOrders(PaymentDetails.PaymentStatus.PENDING);
+        return pendingOrders.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+    }
 
+    @Override
+    public OrderResponse updateCreditOrderStatus(String orderId) {
+        OrderEntity order = orderEntityRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        if (!"CREDIT".equalsIgnoreCase(order.getCreditType())) {
+            throw new RuntimeException("Order is not a credit order");
+        }
+        
+        PaymentDetails paymentDetails = order.getPaymentDetails();
+        if (paymentDetails == null) {
+            paymentDetails = new PaymentDetails();
+            order.setPaymentDetails(paymentDetails);
+        }
+        
+        paymentDetails.setStatus(PaymentDetails.PaymentStatus.COMPLETED);
+        order.setPendingAmount(0.0);
+        
+        order = orderEntityRepository.save(order);
+        return convertToResponse(order);
+    }
 
 }

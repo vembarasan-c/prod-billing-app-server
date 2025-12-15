@@ -46,6 +46,16 @@ public class OrderController {
         return  orderService.getOrdersByDateRangeAndPaymentType(filter, startDate, endDate, paymentType);
     }
 
+    @GetMapping("/pending-credits")
+    public ResponseEntity<List<OrderResponse>> getPendingCreditOrders() {
+        return ResponseEntity.ok(orderService.getPendingCreditOrders());
+    }
+
+    @PutMapping("/{orderId}/complete-credit")
+    public ResponseEntity<OrderResponse> completeCreditOrder(@PathVariable String orderId) {
+        return ResponseEntity.ok(orderService.updateCreditOrderStatus(orderId));
+    }
+
 }
 
 

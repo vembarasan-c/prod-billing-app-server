@@ -30,4 +30,8 @@ public interface OrderService {
     List<OrderResponse> findRecentOrders();
 
     ResponseEntity<?> getOrdersByDateRangeAndPaymentType(String filter, String startDate, String endDate, String paymentType);
+
+    List<OrderResponse> getPendingCreditOrders();
+
+    OrderResponse updateCreditOrderStatus(String orderId);
 }

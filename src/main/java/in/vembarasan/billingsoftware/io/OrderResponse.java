@@ -18,6 +18,7 @@ public class OrderResponse {
 
     private String customerName;
     private String phoneNumber;
+    private String gstin;
     private List<OrderResponse.OrderItemResponse> items;
     private Double subtotal;
     private Double tax;
@@ -25,6 +26,9 @@ public class OrderResponse {
     private PaymentMethod paymentMethod;
     private LocalDateTime createdAt;
     private PaymentDetails paymentDetails;
+    private String creditType;
+    private Double paidAmount;
+    private Double pendingAmount;
 
     @Data
     @AllArgsConstructor

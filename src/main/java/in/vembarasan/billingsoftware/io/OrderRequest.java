@@ -18,6 +18,7 @@ public class OrderRequest {
     private String username;
 
     private String phoneNumber;
+    private String gstin;
     private List<OrderItemRequest> cartItems;
     private Double subtotal;
     private Double tax;

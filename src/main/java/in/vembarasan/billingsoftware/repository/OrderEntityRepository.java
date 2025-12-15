@@ -6,7 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.web.bind.annotation.PathVariable;
+import in.vembarasan.billingsoftware.io.PaymentDetails;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -69,6 +69,12 @@ public interface OrderEntityRepository extends JpaRepository<OrderEntity, Long> 
             @Param("paymentType") PaymentMethod paymentType
     );
 
-
+    @Query("""
+       SELECT o FROM OrderEntity o
+       WHERE o.creditType = 'CREDIT'
+       AND o.paymentDetails.status = :pendingStatus
+       ORDER BY o.createdAt DESC
+       """)
+    List<OrderEntity> findPendingCreditOrders(@Param("pendingStatus") PaymentDetails.PaymentStatus pendingStatus);
 
 }
