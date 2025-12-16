@@ -24,26 +24,40 @@ public class CustomerServiceImpl implements CustomerService {
     public CustomerResponse createCustomer(CustomerRequest request) {
 
         // Normalize email: trim and convert empty string to null
-        String email = (request.getEmail() != null && !request.getEmail().trim().isEmpty()) 
-                ? request.getEmail().trim() 
-                : null;
 
+        String email = null;
+        if(request.getEmail() != null){
+            email = request.getEmail().trim();
+        }
+
+        String name = request.getName();
         // Check email uniqueness only if email is provided
-        if (email != null) {
-            if (customerRepository.existsByEmail(email)) {
-                throw new ApiException("Email already exists: " + email, HttpStatus.CONFLICT);
+//        if (email != null) {
+//            if (customerRepository.existsByEmail(email)) {
+//                throw new ApiException("Email already exists: " + email, HttpStatus.CONFLICT);
+//            }
+//        }
+
+        if(name != null){
+            boolean checkIfCustomerAlreadyExist = customerRepository.existsByName(name);
+            if(!checkIfCustomerAlreadyExist){
+
+                CustomerEntity customer = CustomerEntity.builder()
+                        .name(request.getName())
+                        .email(email)
+                        .phoneNumber(request.getPhoneNumber())
+                        .build();
+
+                CustomerEntity saved = customerRepository.save(customer);
+
+                return mapToResponse(saved);
+
             }
         }
 
-        CustomerEntity customer = CustomerEntity.builder()
-                .name(request.getName())
-                .email(email)
-                .phoneNumber(request.getPhoneNumber())
-                .build();
 
-        CustomerEntity saved = customerRepository.save(customer);
 
-        return mapToResponse(saved);
+        return null;
     }
 
     @Override

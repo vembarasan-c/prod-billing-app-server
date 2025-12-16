@@ -10,6 +10,7 @@ import in.vembarasan.billingsoftware.repository.CustomerRepository;
 import in.vembarasan.billingsoftware.repository.GstSequenceRepository;
 import in.vembarasan.billingsoftware.repository.NonGstRepository;
 import in.vembarasan.billingsoftware.repository.OrderEntityRepository;
+import in.vembarasan.billingsoftware.service.CustomerService;
 import in.vembarasan.billingsoftware.service.NonGstOrderService;
 import in.vembarasan.billingsoftware.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,8 @@ public class OrderServiceImpl implements OrderService {
 
     private final NonGstOrderService nonGstOrderService;
 
+    private final CustomerService customerService;
+
 
 
 //    Main one
@@ -69,15 +72,18 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderResponse createOrder(OrderRequest request) {
 
-        String customerName = request.getCustomerName();
+        String customerName = formatCustomerName(request.getCustomerName());
+
         String phoneNumber = request.getPhoneNumber();
 
         // if customer does not exist, add new customer
         boolean isCustomerExist = checkIfCustomerExist(customerName, phoneNumber);
 
-        // check if customer had a pending amount
 
 
+
+        // formate customer name
+        request.setCustomerName(customerName);
         // GST Bill
         OrderEntity newOrder = convertToOrderEntity(request);
 
@@ -402,17 +408,15 @@ public class OrderServiceImpl implements OrderService {
 
         boolean isExistCustomerName = customerRepository.existsByNameIgnoreCase(formatCustomerName);
 
-        // email valid
         if(!isExistCustomerName){
             // Add new customer
+            CustomerRequest request = new CustomerRequest();
+            request.setEmail(null);
+            request.setName(formatCustomerName);
+            request.setPhoneNumber(phoneNumber);
 
-            CustomerEntity customer = CustomerEntity.builder()
-                    .name(formatCustomerName)
-                    .email("dds")
-                    .phoneNumber(phoneNumber)
-                    .build();
+            customerService.createCustomer(request);
 
-            CustomerEntity saved = customerRepository.save(customer);
             return true;
         }
 
