@@ -421,7 +421,7 @@ public class OrderServiceImpl implements OrderService {
 
             CustomerEntity customer = CustomerEntity.builder()
                     .name(formatCustomerName)
-                    .email("dds")
+                    .email(null)
                     .phoneNumber(phoneNumber)
                     .build();
 
