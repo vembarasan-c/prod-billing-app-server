@@ -45,6 +45,9 @@ public class OrderServiceImpl implements OrderService {
 
 
 
+
+
+
 //    Main one
     @Override
     public ResponseEntity<?>  getOrdersByDateRangeAndPaymentType(String filter, String startDate, String endDate, String paymentType) {
@@ -422,6 +425,38 @@ public class OrderServiceImpl implements OrderService {
 
         return false;
 
+    }
+
+
+
+    @Override
+    public List<OrderResponse> getPendingCreditOrders() {
+        List<OrderEntity> pendingOrders = orderEntityRepository.findPendingCreditOrders(PaymentDetails.PaymentStatus.PENDING);
+        return pendingOrders.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public OrderResponse updateCreditOrderStatus(String orderId) {
+        OrderEntity order = orderEntityRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (!"CREDIT".equalsIgnoreCase(order.getCreditType())) {
+            throw new RuntimeException("Order is not a credit order");
+        }
+
+        PaymentDetails paymentDetails = order.getPaymentDetails();
+        if (paymentDetails == null) {
+            paymentDetails = new PaymentDetails();
+            order.setPaymentDetails(paymentDetails);
+        }
+
+        paymentDetails.setStatus(PaymentDetails.PaymentStatus.COMPLETED);
+        order.setPendingAmount(0.0);
+
+        order = orderEntityRepository.save(order);
+        return convertToResponse(order);
     }
 
 

@@ -32,6 +32,7 @@ public class OrderEntity {
     private String username;
     private String customerName;
     private String phoneNumber;
+    private String gstin;
     private Double subtotal;
     private Double tax;
     private Double grandTotal;
