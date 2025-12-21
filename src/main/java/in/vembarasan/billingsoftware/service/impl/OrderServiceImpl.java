@@ -215,9 +215,11 @@ public class OrderServiceImpl implements OrderService {
     private OrderResponse convertToResponse(OrderEntity newOrder) {
         return OrderResponse.builder()
                 .orderId(newOrder.getOrderId())
+                .invoiceNumber(newOrder.getInvoiceNumber())
                 .username(newOrder.getUsername())
                 .customerName(newOrder.getCustomerName())
                 .phoneNumber(newOrder.getPhoneNumber())
+                .gstin(newOrder.getGstin())
                 .subtotal(newOrder.getSubtotal())
                 .tax(newOrder.getTax())
                 .grandTotal(newOrder.getGrandTotal())

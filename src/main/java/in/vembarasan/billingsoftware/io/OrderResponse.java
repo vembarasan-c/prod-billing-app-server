@@ -14,6 +14,7 @@ import java.util.List;
 @Builder
 public class OrderResponse {
     private String orderId;
+    private String invoiceNumber;
     private String username;
 
     private String customerName;
