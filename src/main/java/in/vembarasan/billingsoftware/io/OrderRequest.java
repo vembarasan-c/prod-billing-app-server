@@ -30,6 +30,8 @@ public class OrderRequest {
     private String creditType;
 
     private Double paidAmount;
+    
+    private Boolean forceProceed; // Flag to bypass pending credit order validation
 
 
     @Data

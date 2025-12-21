@@ -123,6 +123,43 @@ public class OrderServiceImpl implements OrderService {
 
         if ("CREDIT".equalsIgnoreCase(request.getCreditType())) {
 
+            // Check if customer already has pending credit orders BEFORE creating new one
+            // Skip check if forceProceed is true
+            Boolean forceProceed = request.getForceProceed() != null && request.getForceProceed();
+            
+            if (!forceProceed) {
+                List<OrderEntity> existingPendingOrders = orderEntityRepository.findPendingCreditOrdersByCustomer(
+                        PaymentDetails.PaymentStatus.PENDING,
+                        customerName,
+                        phoneNumber
+                );
+                
+                if (!existingPendingOrders.isEmpty()) {
+                    // Calculate total pending amount
+                    double totalPendingAmount = existingPendingOrders.stream()
+                            .mapToDouble(OrderEntity::getPendingAmount)
+                            .sum();
+                    
+                    // Get the oldest pending order date
+                    String oldestOrderDate = existingPendingOrders.stream()
+                            .min((o1, o2) -> o1.getCreatedAt().compareTo(o2.getCreatedAt()))
+                            .map(order -> order.getCreatedAt().toString())
+                            .orElse("N/A");
+                    
+                    throw new ApiException(
+                            String.format(
+                                    "Customer '%s' (Phone: %s) already has %d pending credit order(s) with total pending amount of ₹%.2f. Oldest pending order date: %s. Please complete the existing pending payment(s) before creating a new credit order.",
+                                    customerName,
+                                    phoneNumber,
+                                    existingPendingOrders.size(),
+                                    totalPendingAmount,
+                                    oldestOrderDate
+                            ),
+                            HttpStatus.BAD_REQUEST
+                    );
+                }
+            }
+
             // Set credit type and amounts on OrderEntity
             newOrder.setCreditType("CREDIT");
             double paid = request.getPaidAmount() != null ? request.getPaidAmount() : 0.0;
