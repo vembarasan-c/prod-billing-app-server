@@ -12,14 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -40,51 +32,14 @@ public class CategoryServiceImpl implements CategoryService {
     private String contextPath;
 
     @Transactional
-    public CategoryResponse add(CategoryRequest request, MultipartFile file) throws IOException {
-        // Validate file
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("Image file is required");
+    public CategoryResponse add(CategoryRequest request) {
+        // Validate image URL
+        if (request.getImageUrl() == null || request.getImageUrl().trim().isEmpty()) {
+            throw new IllegalArgumentException("Image URL is required");
         }
 
-        // Get file extension with validation
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null || originalFilename.trim().isEmpty()) {
-            throw new IllegalArgumentException("File name is required");
-        }
-
-        String fileExtension = StringUtils.getFilenameExtension(originalFilename);
-        if (fileExtension == null || fileExtension.trim().isEmpty()) {
-            throw new IllegalArgumentException("File extension is required");
-        }
-
-        // Generate unique filename
-        String fileName = UUID.randomUUID().toString() + "." + fileExtension;
-        Path uploadPath = Paths.get("uploads").toAbsolutePath().normalize();
-
-        try {
-            // Create uploads directory if it doesn't exist
-            Files.createDirectories(uploadPath);
-            logger.info("Upload directory created/verified at: {}", uploadPath);
-
-            Path targetLocation = uploadPath.resolve(fileName);
-
-            // Copy file to upload directory
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-            logger.info("Image file saved successfully: {}", fileName);
-        } catch (IOException e) {
-            logger.error("Failed to save image file: {}", e.getMessage(), e);
-            throw new IOException("Failed to save image file: " + e.getMessage(), e);
-        }
-
-        // Build dynamic image URL based on base URL and context path
-        // Ensure baseUrl doesn't have trailing slash
-        String cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-        // Ensure contextPath starts with / and doesn't end with /
-        String cleanContextPath = contextPath.startsWith("/") ? contextPath : "/" + contextPath;
-        cleanContextPath = cleanContextPath.endsWith("/") ? cleanContextPath.substring(0, cleanContextPath.length() - 1) : cleanContextPath;
-
-        String imgUrl = cleanBaseUrl + cleanContextPath + "/uploads/" + fileName;
-        logger.info("Generated image URL: {}", imgUrl);
+        String imgUrl = request.getImageUrl().trim();
+        logger.info("Using provided image URL: {}", imgUrl);
 
         try {
             CategoryEntity newCategory = convertToEntity(request);
@@ -92,14 +47,7 @@ public class CategoryServiceImpl implements CategoryService {
             newCategory = categoryRepository.save(newCategory);
             return convertToResponse(newCategory);
         } catch (Exception e) {
-            // If database save fails, try to delete the uploaded file
-            try {
-                Path targetLocation = uploadPath.resolve(fileName);
-                Files.deleteIfExists(targetLocation);
-            } catch (IOException ioException) {
-                // Log but don't throw - the main exception is more important
-                System.err.println("Failed to cleanup uploaded file after database error: " + ioException.getMessage());
-            }
+            logger.error("Failed to save category: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to save category: " + e.getMessage(), e);
         }
     }
@@ -119,24 +67,25 @@ public class CategoryServiceImpl implements CategoryService {
         CategoryEntity existingCategory = categoryRepository.findByCategoryId(categoryId)
                 .orElseThrow(() -> new RuntimeException("Category not found: " + categoryId));
 
-        // Delete associated image file if exists
-        String imgUrl = existingCategory.getImgUrl();
-        if (imgUrl != null && !imgUrl.isEmpty()) {
-            try {
-                String fileName = imgUrl.substring(imgUrl.lastIndexOf("/") + 1);
-                Path uploadPath = Paths.get("uploads").toAbsolutePath().normalize();
-                Path filePath = uploadPath.resolve(fileName);
-                Files.deleteIfExists(filePath);
-            } catch (Exception e) {
-                // Log error but continue with category deletion
-                System.err.println("Failed to delete image file: " + e.getMessage());
-            }
+        // Check if category has items associated with it
+        Integer itemsCount = itemRepository.countByCategoryId(existingCategory.getId());
+        if (itemsCount != null && itemsCount > 0) {
+            throw new RuntimeException("Cannot delete category '" + existingCategory.getName() + "'. It has " + itemsCount + " item(s) associated with it. Please delete or move the items first.");
         }
 
         try {
             categoryRepository.delete(existingCategory);
+            logger.info("Category deleted successfully: {}", categoryId);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to delete category: " + e.getMessage(), e);
+            logger.error("Failed to delete category: {}", e.getMessage(), e);
+            
+            // Check if it's a foreign key constraint violation
+            String errorMessage = e.getMessage();
+            if (errorMessage != null && (errorMessage.contains("foreign key") || errorMessage.contains("constraint"))) {
+                throw new RuntimeException("Cannot delete category '" + existingCategory.getName() + "'. It has items associated with it. Please delete or move the items first.");
+            }
+            
+            throw new RuntimeException("Failed to delete category: " + (errorMessage != null ? errorMessage : e.getClass().getSimpleName()));
         }
     }
 
@@ -160,6 +109,7 @@ public class CategoryServiceImpl implements CategoryService {
                 .name(request.getName())
                 .description(request.getDescription())
                 .bgColor(request.getBgColor())
+                .imgUrl(request.getImageUrl())
                 .build();
     }
 }

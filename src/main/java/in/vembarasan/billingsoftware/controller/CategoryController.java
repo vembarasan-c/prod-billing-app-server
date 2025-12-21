@@ -1,18 +1,13 @@
 package in.vembarasan.billingsoftware.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import in.vembarasan.billingsoftware.io.CategoryRequest;
 import in.vembarasan.billingsoftware.io.CategoryResponse;
 import in.vembarasan.billingsoftware.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -23,19 +18,14 @@ public class CategoryController {
 
     @PostMapping("/admin/categories")
     @ResponseStatus(HttpStatus.CREATED)
-    public CategoryResponse addCategory(@RequestPart("category") String categoryString,
-                                        @RequestPart("file") MultipartFile file) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        CategoryRequest request = null;
+    public CategoryResponse addCategory(@RequestBody CategoryRequest request) {
         try {
-            request = objectMapper.readValue(categoryString, CategoryRequest.class);
-            return categoryService.add(request, file);
-        } catch(JsonProcessingException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exception occred while parsing the json: "+ex.getMessage());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            return categoryService.add(request);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to add category: " + e.getMessage());
         }
-
     }
 
     @GetMapping("/categories")
@@ -48,8 +38,20 @@ public class CategoryController {
     public void remove(@PathVariable String categoryId) {
         try {
             categoryService.delete(categoryId);
-        }catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        } catch (RuntimeException e) {
+            // Check if it's a constraint violation (category has items)
+            String errorMessage = e.getMessage();
+            if (errorMessage != null && (errorMessage.contains("item") || errorMessage.contains("Cannot delete"))) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, errorMessage);
+            }
+            // Category not found
+            if (errorMessage != null && errorMessage.contains("not found")) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, errorMessage);
+            }
+            // Other errors
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, errorMessage != null ? errorMessage : "Failed to delete category");
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete category: " + e.getMessage());
         }
     }
 }

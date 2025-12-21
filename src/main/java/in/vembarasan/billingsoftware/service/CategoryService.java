@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface CategoryService {
 
-    CategoryResponse add(CategoryRequest request, MultipartFile file) throws IOException;
+    CategoryResponse add(CategoryRequest request);
 
     List<CategoryResponse> read();
 
