@@ -123,9 +123,14 @@ public class OrderServiceImpl implements OrderService {
 
         if ("CREDIT".equalsIgnoreCase(request.getCreditType())) {
 
+            // Set credit type and amounts on OrderEntity
+            newOrder.setCreditType("CREDIT");
+            double paid = request.getPaidAmount() != null ? request.getPaidAmount() : 0.0;
+            newOrder.setPaidAmount(paid);
+            
             paymentDetails.setStatus(PaymentDetails.PaymentStatus.PENDING);
 
-            double pending = request.getGrandTotal() - request.getPaidAmount();
+            double pending = request.getGrandTotal() - paid;
 
             if (pending <= 0) {
                 newOrder.setPendingAmount(0.0);
@@ -185,6 +190,9 @@ public class OrderServiceImpl implements OrderService {
                         .collect(Collectors.toList()))
                 .paymentDetails(newOrder.getPaymentDetails())
                 .createdAt(newOrder.getCreatedAt())
+                .creditType(newOrder.getCreditType())
+                .paidAmount(newOrder.getPaidAmount())
+                .pendingAmount(newOrder.getPendingAmount())
                 .build();
                 
     }
