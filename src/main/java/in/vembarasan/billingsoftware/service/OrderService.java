@@ -33,5 +33,5 @@ public interface OrderService {
 
     List<OrderResponse> getPendingCreditOrders();
 
-    OrderResponse updateCreditOrderStatus(String orderId, Double paidAmount);
+    OrderResponse updateCreditOrderStatus(String orderId);
 }

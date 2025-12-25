@@ -78,7 +78,7 @@ public class NonGstServiceImpl implements NonGstOrderService {
 
     private NonGstOrderEntity convertToNonGstOrderEntity(OrderRequest request){
         return NonGstOrderEntity.builder()
-                .orderId(UUID.randomUUID().toString()) // see later
+
                 .customerName(request.getCustomerName())
                 .username(request.getUsername())
                 .phoneNumber(request.getPhoneNumber())
@@ -87,6 +87,8 @@ public class NonGstServiceImpl implements NonGstOrderService {
                 .grandTotal(request.getSubtotal())
                 .paymentMethod(PaymentMethod.valueOf(request.getPaymentMethod()))
                 .build();
+
+//                .orderId(UUID.randomUUID().toString()) // see later
 
     }
 

@@ -56,7 +56,8 @@ public class OrderEntity {
 
     @PrePersist
     protected void onCreate() {
-        this.orderId = "ORD"+System.currentTimeMillis();
+//        this.orderId = "ORD"+System.currentTimeMillis();
+        this.invoiceDate = LocalDateTime.now(); // check
         this.createdAt = LocalDateTime.now();
     }
 

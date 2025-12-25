@@ -25,7 +25,7 @@ public class UserController {
             return userService.createUser(request);
         } catch (Exception e) {
 //   i changed user to role
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unable to create " + request.getRole() +e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unable to create "+ request.getEmail() + " : "+  e.getMessage());
         }
     }
 

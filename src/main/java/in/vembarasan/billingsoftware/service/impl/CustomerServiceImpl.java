@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 
@@ -50,7 +51,6 @@ public class CustomerServiceImpl implements CustomerService {
         }
 
 
-
         return null;
     }
 
@@ -58,14 +58,22 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public CustomerResponse createCustomerInCustomerTab(CustomerRequest request) {
 
-        // Normalize email: trim and convert empty string to null
+        // Normalize email: trim and convert empty string to nul
 
-        String email = null;
+        String email = Optional.ofNullable(request.getEmail())
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .orElse(null);
+
+
+        String name = request.getName();
+
         if(request.getEmail() != null){
             email = request.getEmail().trim();
         }
 
-        String name = request.getName();
+        System.out.println(request.getEmail().trim());
+
         // Check email uniqueness only if email is provided
         if (email != null) {
             if (customerRepository.existsByEmail(email)) {
@@ -74,25 +82,26 @@ public class CustomerServiceImpl implements CustomerService {
         }
 
         if(name != null){
-            boolean checkIfCustomerAlreadyExist = customerRepository.existsByName(name);
-            if(!checkIfCustomerAlreadyExist){
-
-                CustomerEntity customer = CustomerEntity.builder()
-                        .name(request.getName())
-                        .email(email)
-                        .phoneNumber(request.getPhoneNumber())
-                        .build();
-
-                CustomerEntity saved = customerRepository.save(customer);
-
-                return mapToResponse(saved);
-
+            String customerName = formatCustomerName(name);
+            name = customerName;
+            boolean checkIfCustomerAlreadyExist = customerRepository.existsByName(customerName);
+            if (checkIfCustomerAlreadyExist){
+                throw new ApiException("Customer Already exist : "+ " " + customerName, HttpStatus.BAD_REQUEST);
             }
         }
 
 
 
-        return null;
+            CustomerEntity customer = CustomerEntity.builder()
+                    .name(name)
+                    .email(email)
+                    .phoneNumber(request.getPhoneNumber())
+                    .build();
+
+            CustomerEntity saved = customerRepository.save(customer);
+
+            return mapToResponse(saved);
+
     }
 
 
@@ -160,4 +169,29 @@ public class CustomerServiceImpl implements CustomerService {
                 .phoneNumber(customer.getPhoneNumber())
                 .build();
     }
+
+
+    private static String formatCustomerName(String input) {
+
+        if (input == null || input.trim().isEmpty()) {
+            throw new ApiException(
+                    "Customer name is required",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        String[] words = input.trim().toLowerCase().split("\\s+");
+        StringBuilder formattedName = new StringBuilder();
+
+        for (String word : words) {
+            formattedName
+                    .append(Character.toUpperCase(word.charAt(0)))
+                    .append(word.substring(1))
+                    .append(" ");
+        }
+
+        return formattedName.toString().trim();
+    }
+
+
 }

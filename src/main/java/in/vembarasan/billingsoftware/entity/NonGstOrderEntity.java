@@ -27,6 +27,7 @@ public class NonGstOrderEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+//    @Column(nullable = false, unique = true)
     private String orderId;
     private String invoiceNumber;
     private LocalDateTime invoiceDate;
@@ -62,9 +63,10 @@ public class NonGstOrderEntity {
 
     @PrePersist
     protected void onCreate() {
-        this.orderId = "ORD" + System.currentTimeMillis();
+//        this.orderId = "ORD" + System.currentTimeMillis();
         this.createdAt = LocalDateTime.now();
         this.invoiceDate = LocalDateTime.now();
     }
+
 }
 

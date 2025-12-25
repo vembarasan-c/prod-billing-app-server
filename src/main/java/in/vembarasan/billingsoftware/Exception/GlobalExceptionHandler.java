@@ -21,6 +21,11 @@ public class GlobalExceptionHandler {
         response.put("status", ex.getStatus().value());
         response.put("error", ex.getStatus().getReasonPhrase());
         response.put("message", ex.getMessage());
+        
+        // Include additional data if present
+        if (ex.getAdditionalData() != null) {
+            response.putAll(ex.getAdditionalData());
+        }
 
         return ResponseEntity.status(ex.getStatus()).body(response);
     }
@@ -29,11 +34,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {
 
+        String message = (ex.getMessage() != null && !ex.getMessage().isBlank())
+                ? ex.getMessage()
+                : "Something went wrong";
+
         Map<String, Object> response = new HashMap<>();
         response.put("timestamp", LocalDateTime.now());
-        response.put("status", 500);
+        response.put("status",500);
         response.put("error", "Internal Server Error");
-        response.put("message", "Something went wrong");
+        response.put("message", message );
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }

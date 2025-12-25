@@ -103,4 +103,7 @@ public interface OrderEntityRepository extends JpaRepository<OrderEntity, Long> 
             @Param("customerName") String customerName
     );
 
+    @Query("SELECT COUNT(o) FROM OrderEntity o WHERE YEAR(o.createdAt) = :year")
+    Long countOrdersForYear(@Param("year") int year);
+
 }
