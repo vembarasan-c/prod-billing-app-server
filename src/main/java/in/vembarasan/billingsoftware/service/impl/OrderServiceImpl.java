@@ -21,7 +21,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -120,45 +122,62 @@ public class OrderServiceImpl implements OrderService {
 
         paymentDetails.setStatus(status);
 
+        // Check if customer already has pending credit orders BEFORE creating ANY order (credit or non-credit)
+        // Skip check if forceProceed is true
+        Boolean forceProceed = request.getForceProceed() != null && request.getForceProceed();
+        
+        if (!forceProceed) {
+            List<OrderEntity> existingPendingOrders = orderEntityRepository.findPendingCreditOrdersByCustomer(
+                    PaymentDetails.PaymentStatus.PENDING,
+                    customerName,
+                    phoneNumber
+            );
+            
+            if (!existingPendingOrders.isEmpty()) {
+                // Calculate total pending amount
+                double totalPendingAmount = existingPendingOrders.stream()
+                        .mapToDouble(OrderEntity::getPendingAmount)
+                        .sum();
+                
+                // Get the oldest pending order date
+                String oldestOrderDate = existingPendingOrders.stream()
+                        .min((o1, o2) -> o1.getCreatedAt().compareTo(o2.getCreatedAt()))
+                        .map(order -> order.getCreatedAt().toString())
+                        .orElse("N/A");
+                
+                // Create list of pending orders with details
+                List<Map<String, Object>> pendingOrdersList = existingPendingOrders.stream()
+                        .map(order -> {
+                            Map<String, Object> orderInfo = new HashMap<>();
+                            orderInfo.put("orderId", order.getOrderId());
+                            orderInfo.put("invoiceNumber", order.getInvoiceNumber() != null ? order.getInvoiceNumber() : "N/A");
+                            orderInfo.put("pendingAmount", order.getPendingAmount());
+                            orderInfo.put("grandTotal", order.getGrandTotal());
+                            orderInfo.put("createdAt", order.getCreatedAt().toString());
+                            return orderInfo;
+                        })
+                        .collect(Collectors.toList());
+                
+                // Prepare additional data for the exception
+                Map<String, Object> additionalData = new HashMap<>();
+                additionalData.put("pendingOrders", pendingOrdersList);
+                
+                throw new ApiException(
+                        String.format(
+                                "Customer '%s' (Phone: %s) already has %d pending credit order(s) with total pending amount of ₹%.2f. Oldest pending order date: %s. Please complete the existing pending payment(s) before creating a new order.",
+                                customerName,
+                                phoneNumber,
+                                existingPendingOrders.size(),
+                                totalPendingAmount,
+                                oldestOrderDate
+                        ),
+                        HttpStatus.BAD_REQUEST,
+                        additionalData
+                );
+            }
+        }
 
         if ("CREDIT".equalsIgnoreCase(request.getCreditType())) {
-
-            // Check if customer already has pending credit orders BEFORE creating new one
-            // Skip check if forceProceed is true
-            Boolean forceProceed = request.getForceProceed() != null && request.getForceProceed();
-            
-            if (!forceProceed) {
-                List<OrderEntity> existingPendingOrders = orderEntityRepository.findPendingCreditOrdersByCustomer(
-                        PaymentDetails.PaymentStatus.PENDING,
-                        customerName,
-                        phoneNumber
-                );
-                
-                if (!existingPendingOrders.isEmpty()) {
-                    // Calculate total pending amount
-                    double totalPendingAmount = existingPendingOrders.stream()
-                            .mapToDouble(OrderEntity::getPendingAmount)
-                            .sum();
-                    
-                    // Get the oldest pending order date
-                    String oldestOrderDate = existingPendingOrders.stream()
-                            .min((o1, o2) -> o1.getCreatedAt().compareTo(o2.getCreatedAt()))
-                            .map(order -> order.getCreatedAt().toString())
-                            .orElse("N/A");
-                    
-                    throw new ApiException(
-                            String.format(
-                                    "Customer '%s' (Phone: %s) already has %d pending credit order(s) with total pending amount of ₹%.2f. Oldest pending order date: %s. Please complete the existing pending payment(s) before creating a new credit order.",
-                                    customerName,
-                                    phoneNumber,
-                                    existingPendingOrders.size(),
-                                    totalPendingAmount,
-                                    oldestOrderDate
-                            ),
-                            HttpStatus.BAD_REQUEST
-                    );
-                }
-            }
 
             // Set credit type and amounts on OrderEntity
             newOrder.setCreditType("CREDIT");

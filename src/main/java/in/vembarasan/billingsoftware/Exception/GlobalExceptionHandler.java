@@ -21,6 +21,11 @@ public class GlobalExceptionHandler {
         response.put("status", ex.getStatus().value());
         response.put("error", ex.getStatus().getReasonPhrase());
         response.put("message", ex.getMessage());
+        
+        // Include additional data if present
+        if (ex.getAdditionalData() != null) {
+            response.putAll(ex.getAdditionalData());
+        }
 
         return ResponseEntity.status(ex.getStatus()).body(response);
     }
