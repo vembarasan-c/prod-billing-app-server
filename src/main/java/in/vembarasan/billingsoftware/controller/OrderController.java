@@ -52,8 +52,9 @@ public class OrderController {
     }
 
     @PutMapping("/{orderId}/complete-credit")
-    public ResponseEntity<OrderResponse> completeCreditOrder(@PathVariable String orderId) {
-        return ResponseEntity.ok(orderService.updateCreditOrderStatus(orderId));
+    public ResponseEntity<OrderResponse> completeCreditOrder(@PathVariable String orderId,
+                                                             @RequestParam("paidAmount") Double paidAmount) {
+        return ResponseEntity.ok(orderService.updateCreditOrderStatus(orderId, paidAmount));
     }
 
 }

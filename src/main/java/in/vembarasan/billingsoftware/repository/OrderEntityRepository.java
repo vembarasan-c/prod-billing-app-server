@@ -91,4 +91,16 @@ public interface OrderEntityRepository extends JpaRepository<OrderEntity, Long> 
             @Param("phoneNumber") String phoneNumber
     );
 
+    @Query("""
+       SELECT o FROM OrderEntity o
+       WHERE o.creditType = 'CREDIT'
+       AND o.paymentDetails.status = :pendingStatus
+       AND o.customerName = :customerName
+       ORDER BY o.createdAt DESC
+       """)
+    List<OrderEntity> findPendingCreditOrdersByCustomerNameOnly(
+            @Param("pendingStatus") PaymentDetails.PaymentStatus pendingStatus,
+            @Param("customerName") String customerName
+    );
+
 }

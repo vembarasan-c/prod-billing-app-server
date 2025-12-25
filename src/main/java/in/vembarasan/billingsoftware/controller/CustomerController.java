@@ -19,7 +19,7 @@ public class CustomerController {
 
     @PostMapping
     public CustomerResponse createCustomer(@RequestBody CustomerRequest request) {
-        return customerService.createCustomer(request);
+        return customerService.createCustomerInCustomerTab(request);
     }
 
     // GET CUSTOMER BY ID

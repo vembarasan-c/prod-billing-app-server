@@ -23,6 +23,41 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public CustomerResponse createCustomer(CustomerRequest request) {
 
+
+        String email = null;
+        if(request.getEmail() != null){
+            email = request.getEmail().trim();
+        }
+
+        String name = request.getName();
+
+        if(name != null){
+            boolean checkIfCustomerAlreadyExist = customerRepository.existsByName(name);
+            if(!checkIfCustomerAlreadyExist){
+
+                CustomerEntity customer = CustomerEntity.builder()
+                        .name(request.getName())
+                        .email(email)
+                        .phoneNumber(request.getPhoneNumber())
+                        .build();
+
+                CustomerEntity saved = customerRepository.save(customer);
+
+                return mapToResponse(saved);
+
+            }
+
+        }
+
+
+
+        return null;
+    }
+
+
+    @Override
+    public CustomerResponse createCustomerInCustomerTab(CustomerRequest request) {
+
         // Normalize email: trim and convert empty string to null
 
         String email = null;
@@ -32,11 +67,11 @@ public class CustomerServiceImpl implements CustomerService {
 
         String name = request.getName();
         // Check email uniqueness only if email is provided
-//        if (email != null) {
-//            if (customerRepository.existsByEmail(email)) {
-//                throw new ApiException("Email already exists: " + email, HttpStatus.CONFLICT);
-//            }
-//        }
+        if (email != null) {
+            if (customerRepository.existsByEmail(email)) {
+                throw new ApiException("Email already exists: " + email, HttpStatus.CONFLICT);
+            }
+        }
 
         if(name != null){
             boolean checkIfCustomerAlreadyExist = customerRepository.existsByName(name);
@@ -59,6 +94,8 @@ public class CustomerServiceImpl implements CustomerService {
 
         return null;
     }
+
+
 
     @Override
     public CustomerResponse getCustomer(Long id) {

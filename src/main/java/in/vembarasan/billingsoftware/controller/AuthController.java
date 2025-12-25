@@ -34,7 +34,7 @@ public class AuthController {
 
 
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody AuthRequest request) throws Exception {
+    public AuthResponse login(@RequestBody AuthRequest request) {
         authenticate(request.getEmail(), request.getPassword());
         final UserDetails userDetails = appUserDetailsService.loadUserByUsername(request.getEmail());
         final String jwtToken = jwtUtil.generateToken(userDetails);
@@ -42,11 +42,11 @@ public class AuthController {
         return new AuthResponse(request.getEmail(), jwtToken, role);
     }
 
-    private void authenticate(String email, String password) throws Exception {
+    private void authenticate(String email, String password) {
         try {
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, password));
         }catch (DisabledException e) {
-            throw new Exception("User disabled");
+            throw new ApiException("User account is disabled", HttpStatus.FORBIDDEN);
         }catch (BadCredentialsException e) {
             throw new ApiException("Email or password is incorrect: "+email, HttpStatus.BAD_REQUEST);
         }

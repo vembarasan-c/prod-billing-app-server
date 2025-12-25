@@ -30,6 +30,9 @@ public class OrderResponse {
     private String creditType;
     private Double paidAmount;
     private Double pendingAmount;
+    // Detailed pending info for this customer across all pending credit orders
+    private List<PendingSummary> pendingSummaries;
+    private Double totalPendingAmount;
 
     @Data
     @AllArgsConstructor
@@ -40,5 +43,16 @@ public class OrderResponse {
         private String name;
         private Double price;
         private Integer quantity;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class PendingSummary {
+        private String orderId;
+        private String productNames;
+        private Double pendingAmount;
+        private LocalDateTime createdAt;
     }
 }

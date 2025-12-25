@@ -1,6 +1,7 @@
 package in.vembarasan.billingsoftware.service.impl;
 
 import in.vembarasan.billingsoftware.entity.CategoryEntity;
+import in.vembarasan.billingsoftware.Exception.ApiException;
 import in.vembarasan.billingsoftware.io.CategoryRequest;
 import in.vembarasan.billingsoftware.io.CategoryResponse;
 import in.vembarasan.billingsoftware.repository.CategoryRepository;
@@ -35,7 +36,7 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryResponse add(CategoryRequest request) {
         // Validate image URL
         if (request.getImageUrl() == null || request.getImageUrl().trim().isEmpty()) {
-            throw new IllegalArgumentException("Image URL is required");
+            throw new ApiException("Image URL is required", org.springframework.http.HttpStatus.BAD_REQUEST);
         }
 
         String imgUrl = request.getImageUrl().trim();
@@ -48,7 +49,7 @@ public class CategoryServiceImpl implements CategoryService {
             return convertToResponse(newCategory);
         } catch (Exception e) {
             logger.error("Failed to save category: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to save category: " + e.getMessage(), e);
+            throw new ApiException("Failed to save category. Please try again later.", org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -65,12 +66,12 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional
     public void delete(String categoryId) {
         CategoryEntity existingCategory = categoryRepository.findByCategoryId(categoryId)
-                .orElseThrow(() -> new RuntimeException("Category not found: " + categoryId));
+                .orElseThrow(() -> new ApiException("Category not found with id: " + categoryId, org.springframework.http.HttpStatus.NOT_FOUND));
 
         // Check if category has items associated with it
         Integer itemsCount = itemRepository.countByCategoryId(existingCategory.getId());
         if (itemsCount != null && itemsCount > 0) {
-            throw new RuntimeException("Cannot delete category '" + existingCategory.getName() + "'. It has " + itemsCount + " item(s) associated with it. Please delete or move the items first.");
+            throw new ApiException("Cannot delete category '" + existingCategory.getName() + "'. It has " + itemsCount + " item(s) associated with it. Please delete or move the items first.", org.springframework.http.HttpStatus.BAD_REQUEST);
         }
 
         try {
@@ -78,14 +79,14 @@ public class CategoryServiceImpl implements CategoryService {
             logger.info("Category deleted successfully: {}", categoryId);
         } catch (Exception e) {
             logger.error("Failed to delete category: {}", e.getMessage(), e);
-            
+
             // Check if it's a foreign key constraint violation
             String errorMessage = e.getMessage();
             if (errorMessage != null && (errorMessage.contains("foreign key") || errorMessage.contains("constraint"))) {
-                throw new RuntimeException("Cannot delete category '" + existingCategory.getName() + "'. It has items associated with it. Please delete or move the items first.");
+                throw new ApiException("Cannot delete category '" + existingCategory.getName() + "'. It has items associated with it. Please delete or move the items first.", org.springframework.http.HttpStatus.BAD_REQUEST);
             }
-            
-            throw new RuntimeException("Failed to delete category: " + (errorMessage != null ? errorMessage : e.getClass().getSimpleName()));
+
+            throw new ApiException("Failed to delete category. Please try again later.", org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 

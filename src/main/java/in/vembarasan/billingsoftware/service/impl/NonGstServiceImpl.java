@@ -3,6 +3,7 @@ package in.vembarasan.billingsoftware.service.impl;
 
 import com.razorpay.Order;
 import in.vembarasan.billingsoftware.entity.NonGstOrderEntity;
+import in.vembarasan.billingsoftware.Exception.ApiException;
 import in.vembarasan.billingsoftware.io.OrderRequest;
 import in.vembarasan.billingsoftware.io.PaymentMethod;
 import in.vembarasan.billingsoftware.repository.NonGstRepository;
@@ -46,7 +47,7 @@ public class NonGstServiceImpl implements NonGstOrderService {
 
         // INVALID PAID AMOUNT CHECK
         if (paid < 0 || paid > totalAmount) {
-            throw new RuntimeException("Invalid paid amount");
+            throw new ApiException("Invalid paid amount. It must be between 0 and total amount.", org.springframework.http.HttpStatus.BAD_REQUEST);
         }
 
         // ✅ CREDIT ENABLED
@@ -98,16 +99,16 @@ public class NonGstServiceImpl implements NonGstOrderService {
     ) {
 
         NonGstOrderEntity order = nonGstRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new ApiException("Non-GST order not found with id: " + orderId, org.springframework.http.HttpStatus.NOT_FOUND));
 
         Double pending = order.getPendingAmount();
 
         if (pending == null || pending <= 0) {
-            throw new RuntimeException("No pending amount");
+            throw new ApiException("No pending amount for this order.", org.springframework.http.HttpStatus.BAD_REQUEST);
         }
 
         if (amount <= 0 || amount > pending) {
-            throw new RuntimeException("Invalid payment amount");
+            throw new ApiException("Invalid payment amount. It must be greater than 0 and not exceed the pending amount.", org.springframework.http.HttpStatus.BAD_REQUEST);
         }
 
         order.setPaidAmount(order.getPaidAmount() + amount);

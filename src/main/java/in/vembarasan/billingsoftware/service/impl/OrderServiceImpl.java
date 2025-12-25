@@ -122,44 +122,6 @@ public class OrderServiceImpl implements OrderService {
 
 
         if ("CREDIT".equalsIgnoreCase(request.getCreditType())) {
-
-            // Check if customer already has pending credit orders BEFORE creating new one
-            // Skip check if forceProceed is true
-            Boolean forceProceed = request.getForceProceed() != null && request.getForceProceed();
-            
-            if (!forceProceed) {
-                List<OrderEntity> existingPendingOrders = orderEntityRepository.findPendingCreditOrdersByCustomer(
-                        PaymentDetails.PaymentStatus.PENDING,
-                        customerName,
-                        phoneNumber
-                );
-                
-                if (!existingPendingOrders.isEmpty()) {
-                    // Calculate total pending amount
-                    double totalPendingAmount = existingPendingOrders.stream()
-                            .mapToDouble(OrderEntity::getPendingAmount)
-                            .sum();
-                    
-                    // Get the oldest pending order date
-                    String oldestOrderDate = existingPendingOrders.stream()
-                            .min((o1, o2) -> o1.getCreatedAt().compareTo(o2.getCreatedAt()))
-                            .map(order -> order.getCreatedAt().toString())
-                            .orElse("N/A");
-                    
-                    throw new ApiException(
-                            String.format(
-                                    "Customer '%s' (Phone: %s) already has %d pending credit order(s) with total pending amount of ₹%.2f. Oldest pending order date: %s. Please complete the existing pending payment(s) before creating a new credit order.",
-                                    customerName,
-                                    phoneNumber,
-                                    existingPendingOrders.size(),
-                                    totalPendingAmount,
-                                    oldestOrderDate
-                            ),
-                            HttpStatus.BAD_REQUEST
-                    );
-                }
-            }
-
             // Set credit type and amounts on OrderEntity
             newOrder.setCreditType("CREDIT");
             double paid = request.getPaidAmount() != null ? request.getPaidAmount() : 0.0;
@@ -199,8 +161,47 @@ public class OrderServiceImpl implements OrderService {
         newOrder = orderEntityRepository.save(newOrder);
         NonGstOrderEntity entity =  nonGstRepository.save(nonGstOrderEntity);
 
+        // Always check for existing pending credit orders for this customer
+        List<OrderEntity> existingPendingOrders;
+        if (phoneNumber != null && !phoneNumber.trim().isEmpty()) {
+            existingPendingOrders = orderEntityRepository.findPendingCreditOrdersByCustomer(
+                    PaymentDetails.PaymentStatus.PENDING,
+                    customerName,
+                    phoneNumber
+            );
+        } else {
+            existingPendingOrders = orderEntityRepository.findPendingCreditOrdersByCustomerNameOnly(
+                    PaymentDetails.PaymentStatus.PENDING,
+                    customerName
+            );
+        }
 
-        return convertToResponse(newOrder);
+        // Build detailed pending summaries: product names, pending amount, created date
+        List<OrderResponse.PendingSummary> pendingSummaries = existingPendingOrders.stream()
+                .map(o -> {
+                    String productNames = (o.getItems() == null) ? "" :
+                            o.getItems().stream()
+                                    .map(OrderItemEntity::getName)
+                                    .collect(Collectors.joining(", "));
+                    double pending = o.getPendingAmount() != null ? o.getPendingAmount() : 0.0;
+                    return OrderResponse.PendingSummary.builder()
+                            .orderId(o.getOrderId())
+                            .productNames(productNames)
+                            .pendingAmount(pending)
+                            .createdAt(o.getCreatedAt())
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        double totalPendingAmount = existingPendingOrders.stream()
+                .mapToDouble(o -> o.getPendingAmount() != null ? o.getPendingAmount() : 0.0)
+                .sum();
+
+        OrderResponse response = convertToResponse(newOrder);
+        response.setPendingSummaries(pendingSummaries);
+        response.setTotalPendingAmount(totalPendingAmount);
+
+        return response;
     }
 
     private OrderItemEntity convertToOrderItemEntity(OrderRequest.OrderItemRequest orderItemRequest) {
@@ -264,7 +265,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public void deleteOrder(String orderId) {
         OrderEntity existingOrder = orderEntityRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new ApiException("Order not found with id: " + orderId, HttpStatus.NOT_FOUND));
         orderEntityRepository.delete(existingOrder);
     }
 
@@ -279,12 +280,12 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderResponse verifyPayment(PaymentVerificationRequest request) {
         OrderEntity existingOrder = orderEntityRepository.findByOrderId(request.getOrderId())
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new ApiException("Order not found with id: " + request.getOrderId(), HttpStatus.NOT_FOUND));
 
         if (!verifyRazorpaySignature(request.getRazorpayOrderId(),
                 request.getRazorpayPaymentId(),
                 request.getRazorpaySignature())) {
-            throw new RuntimeException("Payment verification failed");
+            throw new ApiException("Payment verification failed for order: " + request.getOrderId(), HttpStatus.BAD_REQUEST);
         }
 
         PaymentDetails paymentDetails = existingOrder.getPaymentDetails();
@@ -485,12 +486,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public OrderResponse updateCreditOrderStatus(String orderId) {
+    public OrderResponse updateCreditOrderStatus(String orderId, Double paidAmount) {
+        if (paidAmount == null || paidAmount <= 0) {
+            throw new ApiException("Paid amount must be greater than 0", HttpStatus.BAD_REQUEST);
+        }
+
         OrderEntity order = orderEntityRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new ApiException("Order not found with id: " + orderId, HttpStatus.NOT_FOUND));
 
         if (!"CREDIT".equalsIgnoreCase(order.getCreditType())) {
-            throw new RuntimeException("Order is not a credit order");
+            throw new ApiException("Order is not a credit order", HttpStatus.BAD_REQUEST);
         }
 
         PaymentDetails paymentDetails = order.getPaymentDetails();
@@ -499,10 +504,58 @@ public class OrderServiceImpl implements OrderService {
             order.setPaymentDetails(paymentDetails);
         }
 
-        paymentDetails.setStatus(PaymentDetails.PaymentStatus.COMPLETED);
-        order.setPendingAmount(0.0);
+        double currentPaid = order.getPaidAmount() != null ? order.getPaidAmount() : 0.0;
+        double currentPending = order.getPendingAmount() != null ? order.getPendingAmount() : 0.0;
+
+        if (currentPending <= 0) {
+            throw new ApiException("This credit order has no pending amount to be paid", HttpStatus.BAD_REQUEST);
+        }
+
+        if (paidAmount > currentPending) {
+            throw new ApiException("Paid amount cannot be greater than pending amount", HttpStatus.BAD_REQUEST);
+        }
+
+        double newPending = currentPending - paidAmount;
+        double newPaid = currentPaid + paidAmount;
+
+        order.setPaidAmount(newPaid);
+        order.setPendingAmount(newPending);
+
+        if (newPending == 0.0) {
+            paymentDetails.setStatus(PaymentDetails.PaymentStatus.COMPLETED);
+        } else {
+            paymentDetails.setStatus(PaymentDetails.PaymentStatus.PENDING);
+        }
 
         order = orderEntityRepository.save(order);
+
+        // Also update the corresponding Non-GST order using the same invoice number (GST number)
+        String invoiceNumber = order.getInvoiceNumber();
+        if (invoiceNumber != null && !invoiceNumber.trim().isEmpty()) {
+            nonGstRepository.findByInvoiceNumber(invoiceNumber).ifPresent(nonGstOrder -> {
+                nonGstOrder.setCreditType(order.getCreditType());
+                nonGstOrder.setPaidAmount(newPaid);
+                nonGstOrder.setPendingAmount(newPending);
+
+                // Update non-GST status based on pending amount
+                if (newPending == 0.0) {
+                    nonGstOrder.setStatus("COMPLETED");
+                } else {
+                    nonGstOrder.setStatus("PENDING");
+                }
+
+                // Sync embedded payment details status as well
+                PaymentDetails nonGstPaymentDetails = nonGstOrder.getPaymentDetails();
+                if (nonGstPaymentDetails == null) {
+                    nonGstPaymentDetails = new PaymentDetails();
+                }
+                nonGstPaymentDetails.setStatus(paymentDetails.getStatus());
+                nonGstOrder.setPaymentDetails(nonGstPaymentDetails);
+
+                nonGstRepository.save(nonGstOrder);
+            });
+        }
+
         return convertToResponse(order);
     }
 
