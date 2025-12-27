@@ -288,7 +288,6 @@ public class OrderServiceImpl implements OrderService {
                 .grandTotal(request.getGrandTotal())
                 .paymentMethod(PaymentMethod.valueOf(request.getPaymentMethod()))
                 .build();
-//                .orderId(UUID.randomUUID().toString()) // see later
 
     }
 

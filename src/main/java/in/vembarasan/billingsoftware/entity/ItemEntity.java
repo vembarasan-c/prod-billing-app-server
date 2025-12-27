@@ -44,9 +44,5 @@ public class ItemEntity {
     @UpdateTimestamp
     private Timestamp updatedAt;
 
-    @ManyToOne
-    @JoinColumn(name = "category_id", nullable = false)
-    @OnDelete(action = OnDeleteAction.RESTRICT)
-    private CategoryEntity category;
 
 }

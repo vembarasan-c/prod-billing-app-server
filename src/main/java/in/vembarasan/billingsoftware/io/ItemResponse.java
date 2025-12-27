@@ -17,7 +17,6 @@ public class ItemResponse {
     private String name;
     private BigDecimal price;
     private BigDecimal priceBack;
-    private String categoryId;
     private String description;
     private String categoryName;
     private Timestamp createdAt;

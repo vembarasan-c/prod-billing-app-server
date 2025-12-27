@@ -9,9 +9,8 @@ public interface ItemRepository extends JpaRepository<ItemEntity, Long> {
 
     Optional<ItemEntity> findByItemId(String id);
 
-    Integer countByCategoryId(Long id);
-
     boolean existsByItemId(String id);
+
 
 
 }

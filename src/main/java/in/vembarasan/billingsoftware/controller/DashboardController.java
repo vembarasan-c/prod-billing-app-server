@@ -29,7 +29,6 @@ public class DashboardController {
         Double todaySale = orderService.sumSalesByDate(today);
         Long todayOrderCount = orderService.countByOrderDate(today);
 
-//        Double totalSale = orderService.totalSalesByDateRange(filter, startDate, endDate, paymentType);
         Double totalSale = orderService.sumSalesByDate(today);
 
 

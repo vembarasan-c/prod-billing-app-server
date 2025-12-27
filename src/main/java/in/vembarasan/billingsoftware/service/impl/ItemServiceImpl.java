@@ -1,11 +1,9 @@
 package in.vembarasan.billingsoftware.service.impl;
 
 import in.vembarasan.billingsoftware.Exception.ApiException;
-import in.vembarasan.billingsoftware.entity.CategoryEntity;
 import in.vembarasan.billingsoftware.entity.ItemEntity;
 import in.vembarasan.billingsoftware.io.ItemRequest;
 import in.vembarasan.billingsoftware.io.ItemResponse;
-import in.vembarasan.billingsoftware.repository.CategoryRepository;
 import in.vembarasan.billingsoftware.repository.ItemRepository;
 import in.vembarasan.billingsoftware.service.ItemService;
 import lombok.RequiredArgsConstructor;
@@ -19,12 +17,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ItemServiceImpl implements ItemService {
 
-    private final CategoryRepository categoryRepository;
     private final ItemRepository itemRepository;
 
     @Override
     public ItemResponse add(ItemRequest request) {
-
 
         // Check if itemId already exists
         boolean isItemExist = itemRepository.existsByItemId(request.getItemId());
@@ -32,13 +28,10 @@ public class ItemServiceImpl implements ItemService {
             throw new ApiException("Item already exists with ID: " + request.getItemId(), HttpStatus.CONFLICT);
         }
 
-
-
         ItemEntity newItem = convertToEntity(request);
-        CategoryEntity existingCategory = categoryRepository.findByCategoryId(request.getCategoryId())
-                .orElseThrow(() -> new ApiException("Category not found: "+request.getCategoryId(), HttpStatus.NOT_FOUND  ) );
-        newItem.setCategory(existingCategory);
+
         newItem = itemRepository.save(newItem);
+
         return convertToResponse(newItem);
     }
 
@@ -49,8 +42,6 @@ public class ItemServiceImpl implements ItemService {
                 .description(newItem.getDescription())
                 .price(newItem.getPrice())
                 .priceBack(newItem.getPriceBack())
-                .categoryName(newItem.getCategory().getName())
-                .categoryId(newItem.getCategory().getCategoryId())
                 .createdAt(newItem.getCreatedAt())
                 .updatedAt(newItem.getUpdatedAt())
                 .build();
@@ -58,7 +49,6 @@ public class ItemServiceImpl implements ItemService {
 
     private ItemEntity convertToEntity(ItemRequest request) {
         return ItemEntity.builder()
-//                .itemId(UUID.randomUUID().toString())
                 .itemId(request.getItemId())
                 .name(request.getName())
                 .description(request.getDescription())
