@@ -36,36 +36,38 @@ public class DailyExpenseEntity {
     @Column(name = "cash_in_hand")
     private Double cashInHand;
 
+    @Column(columnDefinition = "TEXT")
     private String image;
 
     @Column(name = "total_cash")
     private Double totalCash;
 
     @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON")
     private String expensive;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "other_expensive")
+    @Column(name = "other_expensive", columnDefinition = "JSON")
     private String otherExpensive;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "advance_paid")
+    @Column(name = "advance_paid", columnDefinition = "JSON")
     private String advancePaid;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "check_payment")
+    @Column(name = "check_payment", columnDefinition = "JSON")
     private String checkPayment;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "cash_deposit")
+    @Column(name = "cash_deposit", columnDefinition = "JSON")
     private String cashDeposit;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "other_incomes")
+    @Column(name = "other_incomes", columnDefinition = "JSON")
     private String otherIncomes;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "machine_reading")
+    @Column(name = "machine_reading", columnDefinition = "JSON")
     private String machineReading;
 
     @CreationTimestamp
