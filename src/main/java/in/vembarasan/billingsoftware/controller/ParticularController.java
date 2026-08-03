@@ -2,6 +2,7 @@ package in.vembarasan.billingsoftware.controller;
 
 import in.vembarasan.billingsoftware.io.ParticularRequest;
 import in.vembarasan.billingsoftware.io.ParticularResponse;
+import in.vembarasan.billingsoftware.io.ParticularDetailsResponse;
 import in.vembarasan.billingsoftware.service.ParticularService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -44,6 +45,15 @@ public class ParticularController {
     public ParticularResponse getParticular(@PathVariable String particularId) {
         try {
             return particularService.getParticularById(particularId);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+    }
+
+    @GetMapping("/getParticularDetails/{particularId}")
+    public ParticularDetailsResponse getParticularDetails(@PathVariable String particularId) {
+        try {
+            return particularService.getParticularDetailsById(particularId);
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
         }

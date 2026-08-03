@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +42,9 @@ public class CustomerServiceImpl implements CustomerService {
                         .name(request.getName())
                         .email(email)
                         .phoneNumber(request.getPhoneNumber())
+                        .companyName(request.getCompanyName())
+                        .taxNumber(request.getTaxNumber())
+                        .isActive(request.getIsActive() != null ? request.getIsActive() : true)
                         .build();
 
                 CustomerEntity saved = customerRepository.save(customer);
@@ -96,6 +101,9 @@ public class CustomerServiceImpl implements CustomerService {
                     .name(name)
                     .email(email)
                     .phoneNumber(request.getPhoneNumber())
+                    .companyName(request.getCompanyName())
+                    .taxNumber(request.getTaxNumber())
+                    .isActive(request.getIsActive() != null ? request.getIsActive() : true)
                     .build();
 
             CustomerEntity saved = customerRepository.save(customer);
@@ -123,6 +131,13 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    public Page<CustomerResponse> getPaginatedCustomers(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return customerRepository.findAll(pageable)
+                .map(this::mapToResponse);
+    }
+
+    @Override
     public CustomerResponse updateCustomer(Long id, CustomerRequest request) {
 
         CustomerEntity customer = customerRepository.findById(id)
@@ -145,6 +160,11 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setName(request.getName());
         customer.setEmail(email);
         customer.setPhoneNumber(request.getPhoneNumber());
+        customer.setCompanyName(request.getCompanyName());
+        customer.setTaxNumber(request.getTaxNumber());
+        if (request.getIsActive() != null) {
+            customer.setIsActive(request.getIsActive());
+        }
 
         CustomerEntity updated = customerRepository.save(customer);
         return mapToResponse(updated);
@@ -167,6 +187,9 @@ public class CustomerServiceImpl implements CustomerService {
                 .name(customer.getName())
                 .email(customer.getEmail())
                 .phoneNumber(customer.getPhoneNumber())
+                .companyName(customer.getCompanyName())
+                .taxNumber(customer.getTaxNumber())
+                .isActive(customer.getIsActive())
                 .build();
     }
 

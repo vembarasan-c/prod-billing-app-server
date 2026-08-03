@@ -11,4 +11,7 @@ public class CustomerResponse {
     private String name;
     private String email;
     private String phoneNumber;
+    private String companyName;
+    private String taxNumber;
+    private Boolean isActive;
 }

@@ -4,6 +4,7 @@ import in.vembarasan.billingsoftware.Exception.ApiException;
 import in.vembarasan.billingsoftware.entity.ParticularEntity;
 import in.vembarasan.billingsoftware.io.ParticularRequest;
 import in.vembarasan.billingsoftware.io.ParticularResponse;
+import in.vembarasan.billingsoftware.io.ParticularDetailsResponse;
 import in.vembarasan.billingsoftware.repository.ParticularRepository;
 import in.vembarasan.billingsoftware.service.ParticularService;
 import lombok.RequiredArgsConstructor;
@@ -74,6 +75,20 @@ public class ParticularServiceImpl implements ParticularService {
     @Transactional(readOnly = true)
     public ParticularResponse getParticularById(String particularId) {
         return convertToResponse(findByParticularId(particularId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ParticularDetailsResponse getParticularDetailsById(String particularId) {
+        ParticularEntity entity = findByParticularId(particularId);
+        return ParticularDetailsResponse.builder()
+                .particularId(entity.getParticularId())
+                .price(entity.getPrice())
+                .priceBack(entity.getPriceBack())
+                .paper(entity.getPaper())
+                .paperGroup(entity.getPaperGroup())
+                .category(entity.getMachineCategory())
+                .build();
     }
 
     @Override

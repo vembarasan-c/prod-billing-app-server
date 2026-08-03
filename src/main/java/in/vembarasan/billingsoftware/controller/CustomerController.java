@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
+import org.springframework.data.domain.Page;
 @RestController
 @RequestMapping("/customers")
 @RequiredArgsConstructor
@@ -32,6 +32,15 @@ public class CustomerController {
     @GetMapping
     public List<CustomerResponse> getAllCustomers() {
         return customerService.getAllCustomers();
+    }
+
+    // GET PAGINATED CUSTOMERS
+    @GetMapping("/paginated")
+    public Page<CustomerResponse> getPaginatedCustomers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return customerService.getPaginatedCustomers(page, size);
     }
 
     // UPDATE CUSTOMER

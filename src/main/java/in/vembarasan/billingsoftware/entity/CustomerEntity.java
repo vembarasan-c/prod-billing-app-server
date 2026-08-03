@@ -29,6 +29,16 @@ public class CustomerEntity {
     @Column(nullable = false)
     private String phoneNumber;
 
+    @Column
+    private String companyName;
+
+    @Column
+    private String taxNumber;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isActive = true;
+
     @CreationTimestamp
     @Column(updatable = false)
     private Timestamp createdAt;
