@@ -8,16 +8,31 @@ import in.vembarasan.billingsoftware.service.BillService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import in.vembarasan.billingsoftware.service.DateFilterService;
+import in.vembarasan.billingsoftware.io.DateRange;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+
 import java.sql.Date;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import in.vembarasan.billingsoftware.repository.ParticularRepository;
 
 @Service
 @RequiredArgsConstructor
 public class BillServiceImpl implements BillService {
 
     private final BillRepository billRepository;
+    private final DateFilterService dateFilterService;
+    private final ParticularRepository particularRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
     public Map<String, String> getNextBillNumber() {
@@ -56,6 +71,36 @@ public class BillServiceImpl implements BillService {
             status = "CREDIT";
         }
 
+        String processedParticulars = request.getParticulars();
+        try {
+            if (processedParticulars != null && !processedParticulars.trim().isEmpty()) {
+                List<Map<String, Object>> particularsList = objectMapper.readValue(
+                        processedParticulars, new TypeReference<List<Map<String, Object>>>() {});
+                
+                for (Map<String, Object> item : particularsList) {
+                    if (item.containsKey("particularId")) {
+                        String pId = String.valueOf(item.get("particularId"));
+                        particularRepository.findByParticularId(pId).ifPresent(p -> {
+                            item.put("name", p.getName());
+                        });
+                    }
+                    
+                    double qty = 0;
+                    double price = 0;
+                    if (item.containsKey("qty")) {
+                        qty = Double.parseDouble(String.valueOf(item.get("qty")));
+                    }
+                    if (item.containsKey("price")) {
+                        price = Double.parseDouble(String.valueOf(item.get("price")));
+                    }
+                    item.put("total_price", qty * price);
+                }
+                processedParticulars = objectMapper.writeValueAsString(particularsList);
+            }
+        } catch (Exception e) {
+            processedParticulars = request.getParticulars();
+        }
+
         BillEntity bill = BillEntity.builder()
                 .billNumber(billNumber)
                 .date(today)
@@ -71,7 +116,7 @@ public class BillServiceImpl implements BillService {
                 .totalWithGst(request.getTotalWithGst())
                 .totalItems(request.getTotalItems())
                 .creditPaidAmount(request.getCreditPaidAmount())
-                .particulars(request.getParticulars())
+                .particulars(processedParticulars)
                 .billStatus(status)
                 .build();
 
@@ -79,8 +124,45 @@ public class BillServiceImpl implements BillService {
 
         return mapToResponse(savedBill);
     }
+
+    @Override
+    public Page<BillResponse> getBills(int page, int size, String dateFilter, String startDate, String endDate, String paymentMode, String customerName) {
+        DateRange dateRange;
+        if ("custom_range".equalsIgnoreCase(dateFilter) && startDate != null && endDate != null) {
+            dateRange = DateRange.builder()
+                    .startDate(Date.valueOf(startDate))
+                    .endDate(Date.valueOf(endDate))
+                    .build();
+        } else {
+            dateRange = dateFilterService.getDateRange(dateFilter);
+        }
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by("date").descending().and(Sort.by("createdAt").descending()));
+        
+        String payment = (paymentMode != null && !paymentMode.trim().isEmpty()) ? paymentMode.trim() : null;
+        String customer = (customerName != null && !customerName.trim().isEmpty()) ? customerName.trim() : null;
+        
+        Page<BillEntity> billsPage = billRepository.findFilteredBills(
+                dateRange.getStartDate(),
+                dateRange.getEndDate(),
+                payment,
+                customer,
+                pageable
+        );
+        
+        return billsPage.map(this::mapToResponse);
+    }
     
     private BillResponse mapToResponse(BillEntity entity) {
+        Object particularsObj = null;
+        try {
+            if (entity.getParticulars() != null && !entity.getParticulars().trim().isEmpty()) {
+                particularsObj = objectMapper.readValue(entity.getParticulars(), Object.class);
+            }
+        } catch (Exception e) {
+            particularsObj = entity.getParticulars();
+        }
+
         return BillResponse.builder()
                 .id(entity.getId())
                 .billNumber(entity.getBillNumber())
@@ -98,7 +180,7 @@ public class BillServiceImpl implements BillService {
                 .totalItems(entity.getTotalItems())
                 .billStatus(entity.getBillStatus())
                 .creditPaidAmount(entity.getCreditPaidAmount())
-                .particulars(entity.getParticulars())
+                .particulars(particularsObj)
                 .build();
     }
 }

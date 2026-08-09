@@ -28,5 +28,5 @@ public class BillResponse {
     private Integer totalItems;
     private String billStatus;
     private Double creditPaidAmount;
-    private String particulars; // JSON String
+    private Object particulars;
 }

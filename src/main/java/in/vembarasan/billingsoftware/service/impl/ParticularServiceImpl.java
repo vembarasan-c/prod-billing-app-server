@@ -83,6 +83,7 @@ public class ParticularServiceImpl implements ParticularService {
         ParticularEntity entity = findByParticularId(particularId);
         return ParticularDetailsResponse.builder()
                 .particularId(entity.getParticularId())
+                .name(entity.getName())
                 .price(entity.getPrice())
                 .priceBack(entity.getPriceBack())
                 .paper(entity.getPaper())

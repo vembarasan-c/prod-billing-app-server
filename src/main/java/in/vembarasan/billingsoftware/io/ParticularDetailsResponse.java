@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 @Builder
 public class ParticularDetailsResponse {
     private String particularId;
+    private String name;
     private BigDecimal price;
     private BigDecimal priceBack;
     private String paper;
