@@ -100,6 +100,38 @@ public class ExpenseController {
         }
     }
 
+    @GetMapping("/daily-reports")
+    public List<in.vembarasan.billingsoftware.io.DailyReportDataResponse> getDailyReports(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date endDate) {
+        
+        if (startDate == null || endDate == null) {
+            java.time.LocalDate now = java.time.LocalDate.now();
+            java.time.LocalDate startOfMonth = now.withDayOfMonth(1);
+            java.time.LocalDate endOfMonth = now.withDayOfMonth(now.lengthOfMonth());
+            startDate = Date.valueOf(startOfMonth);
+            endDate = Date.valueOf(endOfMonth);
+        }
+        return dailyExpenseService.getDailyReports(startDate, endDate);
+    }
+
+    @GetMapping("/daily-reports/{dailyExpenseId}/pdf")
+    public org.springframework.http.ResponseEntity<byte[]> downloadDailyReportPdf(@PathVariable String dailyExpenseId) {
+        try {
+            DailyExpenseResponse expense = dailyExpenseService.getById(dailyExpenseId);
+            String filename = "daily_report_" + expense.getDate() + ".pdf";
+            
+            byte[] pdfBytes = dailyExpenseService.generateDailyReportPdf(dailyExpenseId);
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", filename);
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+            return new org.springframework.http.ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate PDF");
+        }
+    }
+
     // Daily Expense Endpoints
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping("/daily-expenses")

@@ -27,4 +27,8 @@ public interface DailyExpenseService {
     Page<DailyExpenseResponse> getByBranchAndDateRange(String branch, Date startDate, Date endDate, int page, int size, String sortBy);
 
     void delete(String dailyExpenseId);
+
+    java.util.List<in.vembarasan.billingsoftware.io.DailyReportDataResponse> getDailyReports(Date startDate, Date endDate);
+
+    byte[] generateDailyReportPdf(String dailyExpenseId);
 }

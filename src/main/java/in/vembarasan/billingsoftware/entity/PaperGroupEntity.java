@@ -12,8 +12,8 @@ import java.sql.Timestamp;
 
 @Entity
 @Table(name = "tbl_paper_groups", indexes = {
-    @Index(name = "idx_paper_group_id", columnList = "groupId", unique = true),
-    @Index(name = "idx_paper_group_name", columnList = "name")
+        @Index(name = "idx_paper_group_id", columnList = "groupId", unique = true),
+        @Index(name = "idx_paper_group_name", columnList = "name")
 })
 @Builder
 @Data

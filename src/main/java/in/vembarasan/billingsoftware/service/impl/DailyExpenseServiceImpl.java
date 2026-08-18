@@ -6,8 +6,24 @@ import in.vembarasan.billingsoftware.Exception.ApiException;
 import in.vembarasan.billingsoftware.entity.DailyExpenseEntity;
 import in.vembarasan.billingsoftware.io.DailyExpenseRequest;
 import in.vembarasan.billingsoftware.io.DailyExpenseResponse;
+import in.vembarasan.billingsoftware.repository.BillRepository;
 import in.vembarasan.billingsoftware.repository.DailyExpenseRepository;
 import in.vembarasan.billingsoftware.service.DailyExpenseService;
+import in.vembarasan.billingsoftware.io.DailyReportDataResponse;
+import com.lowagie.text.Document;
+import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Element;
+import com.lowagie.text.pdf.PdfPCell;
+import java.awt.Color;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
+import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,6 +40,7 @@ import java.util.UUID;
 public class DailyExpenseServiceImpl implements DailyExpenseService {
 
     private final DailyExpenseRepository dailyExpenseRepository;
+    private final BillRepository billRepository;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -150,6 +167,266 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
         DailyExpenseEntity existingExpense = dailyExpenseRepository.findByDailyExpenseId(dailyExpenseId)
                 .orElseThrow(() -> new ApiException("Daily expense not found: " + dailyExpenseId, HttpStatus.NOT_FOUND));
         dailyExpenseRepository.delete(existingExpense);
+    }
+
+    @Override
+    public List<DailyReportDataResponse> getDailyReports(Date startDate, Date endDate) {
+        Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
+        Page<DailyExpenseEntity> expensesPage = dailyExpenseRepository.findByDateRange(startDate, endDate, pageable);
+        List<DailyReportDataResponse> responses = new ArrayList<>();
+        
+        for (DailyExpenseEntity entity : expensesPage.getContent()) {
+            responses.add(mapToDailyReportDataResponse(entity));
+        }
+        return responses;
+    }
+
+    private DailyReportDataResponse mapToDailyReportDataResponse(DailyExpenseEntity entity) {
+        DailyReportDataResponse response = new DailyReportDataResponse();
+        response.setDailyExpenseId(entity.getDailyExpenseId());
+        response.setDate(entity.getDate());
+        response.setBranch(entity.getBranch());
+        response.setCashInHand(entity.getCashInHand());
+        response.setTotalCash(entity.getTotalCash());
+        response.setImage(entity.getImage());
+        
+        Double totalSales = billRepository.sumTotalAmountByDateRange(entity.getDate(), entity.getDate());
+        response.setTotalSales(totalSales != null ? totalSales : 0.0);
+        
+        // Expenses
+        List<DailyExpenseRequest.ExpenseItem> expenses = parseJson(entity.getExpensive(), new TypeReference<>() {});
+        Map<String, Double> expensesMap = new HashMap<>();
+        double expensesTotal = 0.0;
+        if (expenses != null) {
+            for (DailyExpenseRequest.ExpenseItem item : expenses) {
+                expensesMap.put(item.getItemName(), item.getPrice());
+                if (item.getPrice() != null) expensesTotal += item.getPrice();
+            }
+        }
+        response.setExpenses(expensesMap);
+        response.setExpensesTotal(expensesTotal);
+        
+        // Other Expenses
+        List<DailyExpenseRequest.OtherExpense> otherExpenses = parseJson(entity.getOtherExpensive(), new TypeReference<>() {});
+        Map<String, Double> otherExpensesMap = new HashMap<>();
+        double otherExpensesTotal = 0.0;
+        if (otherExpenses != null) {
+            for (DailyExpenseRequest.OtherExpense item : otherExpenses) {
+                otherExpensesMap.put(item.getType(), item.getAmount());
+                if (item.getAmount() != null) otherExpensesTotal += item.getAmount();
+            }
+        }
+        response.setOtherExpenses(otherExpensesMap);
+        response.setOtherExpensesTotal(otherExpensesTotal);
+        
+        // Check Payment
+        List<DailyExpenseRequest.CheckPayment> checkPayments = parseJson(entity.getCheckPayment(), new TypeReference<>() {});
+        Map<String, Double> checkPaymentMap = new HashMap<>();
+        double checkPaymentTotal = 0.0;
+        if (checkPayments != null) {
+            for (DailyExpenseRequest.CheckPayment item : checkPayments) {
+                checkPaymentMap.put(item.getCheckNo(), item.getAmount());
+                if (item.getAmount() != null) checkPaymentTotal += item.getAmount();
+            }
+        }
+        response.setCheckPayment(checkPaymentMap);
+        response.setCheckPaymentTotal(checkPaymentTotal);
+        
+        // Advance Paid
+        List<DailyExpenseRequest.AdvancePayment> advancePaid = parseJson(entity.getAdvancePaid(), new TypeReference<>() {});
+        Map<String, Double> advancePaidMap = new HashMap<>();
+        double advancePaidTotal = 0.0;
+        if (advancePaid != null) {
+            for (DailyExpenseRequest.AdvancePayment item : advancePaid) {
+                advancePaidMap.put(item.getType(), item.getAmount());
+                if (item.getAmount() != null) advancePaidTotal += item.getAmount();
+            }
+        }
+        response.setAdvancePaid(advancePaidMap);
+        response.setAdvancePaidTotal(advancePaidTotal);
+        
+        // Cash Deposit
+        List<DailyExpenseRequest.CashDeposit> cashDeposits = parseJson(entity.getCashDeposit(), new TypeReference<>() {});
+        Map<String, Double> cashDepositMap = new HashMap<>();
+        double cashDepositTotal = 0.0;
+        if (cashDeposits != null) {
+            for (DailyExpenseRequest.CashDeposit item : cashDeposits) {
+                cashDepositMap.put(item.getRefNo(), item.getAmount());
+                if (item.getAmount() != null) cashDepositTotal += item.getAmount();
+            }
+        }
+        response.setCashDeposit(cashDepositMap);
+        response.setCashDepositTotal(cashDepositTotal);
+        
+        // Other Incomes
+        List<DailyExpenseRequest.OtherIncome> otherIncomes = parseJson(entity.getOtherIncomes(), new TypeReference<>() {});
+        Map<String, Double> otherIncomesMap = new HashMap<>();
+        double otherIncomesTotal = 0.0;
+        if (otherIncomes != null) {
+            for (DailyExpenseRequest.OtherIncome item : otherIncomes) {
+                otherIncomesMap.put(item.getReason(), item.getAmount());
+                if (item.getAmount() != null) otherIncomesTotal += item.getAmount();
+            }
+        }
+        response.setOtherIncomes(otherIncomesMap);
+        response.setOtherIncomesTotal(otherIncomesTotal);
+        
+        // Machine Reading
+        List<DailyExpenseRequest.MachineReading> machineReadings = parseJson(entity.getMachineReading(), new TypeReference<>() {});
+        Map<String, Double> machineReadingMap = new HashMap<>();
+        if (machineReadings != null) {
+            for (DailyExpenseRequest.MachineReading item : machineReadings) {
+                machineReadingMap.put(item.getMachine(), item.getDifference());
+            }
+        }
+        response.setMachineReading(machineReadingMap);
+        
+        return response;
+    }
+
+    @Override
+    public byte[] generateDailyReportPdf(String dailyExpenseId) {
+        DailyExpenseEntity entity = dailyExpenseRepository.findByDailyExpenseId(dailyExpenseId)
+                .orElseThrow(() -> new ApiException("Daily expense not found: " + dailyExpenseId, HttpStatus.NOT_FOUND));
+        
+        DailyReportDataResponse data = mapToDailyReportDataResponse(entity);
+        
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Document document = new Document();
+            PdfWriter.getInstance(document, baos);
+            document.open();
+            
+            // Title
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, new Color(41, 128, 185));
+            Paragraph title = new Paragraph("Daily Expense & Sales Report", titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            title.setSpacingAfter(20f);
+            document.add(title);
+            
+            // Summary Info Table
+            PdfPTable summaryTable = new PdfPTable(2);
+            summaryTable.setWidthPercentage(100);
+            summaryTable.setSpacingAfter(20f);
+            
+            addSummaryRow(summaryTable, "Date", String.valueOf(data.getDate()));
+            addSummaryRow(summaryTable, "Branch", data.getBranch());
+            addSummaryRow(summaryTable, "Total Sales", String.valueOf(data.getTotalSales()));
+            addSummaryRow(summaryTable, "Cash in Hand", String.valueOf(data.getCashInHand()));
+            addSummaryRow(summaryTable, "Total Cash", String.valueOf(data.getTotalCash()));
+            
+            document.add(summaryTable);
+            
+            // Detailed Maps
+            addMapToPdf(document, "Expenses", data.getExpenses(), data.getExpensesTotal());
+            addMapToPdf(document, "Other Expenses", data.getOtherExpenses(), data.getOtherExpensesTotal());
+            addMapToPdf(document, "Check Payments", data.getCheckPayment(), data.getCheckPaymentTotal());
+            addMapToPdf(document, "Advance Paid", data.getAdvancePaid(), data.getAdvancePaidTotal());
+            addMapToPdf(document, "Cash Deposits", data.getCashDeposit(), data.getCashDepositTotal());
+            addMapToPdf(document, "Other Incomes", data.getOtherIncomes(), data.getOtherIncomesTotal());
+            
+            if (data.getMachineReading() != null && !data.getMachineReading().isEmpty()) {
+                Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, new Color(44, 62, 80));
+                Paragraph sectionTitle = new Paragraph("Machine Readings", sectionFont);
+                sectionTitle.setSpacingAfter(10f);
+                document.add(sectionTitle);
+                
+                PdfPTable table = new PdfPTable(2);
+                table.setWidthPercentage(100);
+                table.setSpacingAfter(20f);
+                
+                PdfPCell header1 = new PdfPCell(new Paragraph("Machine", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.WHITE)));
+                header1.setBackgroundColor(new Color(52, 73, 94));
+                header1.setPadding(8f);
+                table.addCell(header1);
+                
+                PdfPCell header2 = new PdfPCell(new Paragraph("Reading/Difference", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.WHITE)));
+                header2.setBackgroundColor(new Color(52, 73, 94));
+                header2.setPadding(8f);
+                table.addCell(header2);
+                
+                for (Map.Entry<String, Double> entry : data.getMachineReading().entrySet()) {
+                    PdfPCell cell1 = new PdfPCell(new Paragraph(entry.getKey()));
+                    cell1.setPadding(6f);
+                    cell1.setBorderColor(new Color(189, 195, 199));
+                    table.addCell(cell1);
+                    
+                    PdfPCell cell2 = new PdfPCell(new Paragraph(String.valueOf(entry.getValue())));
+                    cell2.setPadding(6f);
+                    cell2.setBorderColor(new Color(189, 195, 199));
+                    table.addCell(cell2);
+                }
+                document.add(table);
+            }
+            
+            document.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new ApiException("Failed to generate PDF", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private void addSummaryRow(PdfPTable table, String label, String value) {
+        Font labelFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new Color(52, 73, 94));
+        PdfPCell labelCell = new PdfPCell(new Paragraph(label, labelFont));
+        labelCell.setPadding(8f);
+        labelCell.setBorderColor(new Color(189, 195, 199));
+        labelCell.setBackgroundColor(new Color(236, 240, 241));
+        
+        PdfPCell valueCell = new PdfPCell(new Paragraph(value != null ? value : "N/A"));
+        valueCell.setPadding(8f);
+        valueCell.setBorderColor(new Color(189, 195, 199));
+        
+        table.addCell(labelCell);
+        table.addCell(valueCell);
+    }
+
+    private void addMapToPdf(Document document, String title, Map<String, Double> dataMap, Double total) throws Exception {
+        if (dataMap == null || dataMap.isEmpty()) return;
+        
+        Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, new Color(44, 62, 80));
+        Paragraph sectionTitle = new Paragraph(title, sectionFont);
+        sectionTitle.setSpacingAfter(10f);
+        document.add(sectionTitle);
+        
+        PdfPTable table = new PdfPTable(2);
+        table.setWidthPercentage(100);
+        table.setSpacingAfter(20f);
+        
+        PdfPCell header1 = new PdfPCell(new Paragraph("Description", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.WHITE)));
+        header1.setBackgroundColor(new Color(52, 73, 94));
+        header1.setPadding(8f);
+        table.addCell(header1);
+        
+        PdfPCell header2 = new PdfPCell(new Paragraph("Amount", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.WHITE)));
+        header2.setBackgroundColor(new Color(52, 73, 94));
+        header2.setPadding(8f);
+        table.addCell(header2);
+        
+        for (Map.Entry<String, Double> entry : dataMap.entrySet()) {
+            PdfPCell cell1 = new PdfPCell(new Paragraph(entry.getKey()));
+            cell1.setPadding(6f);
+            cell1.setBorderColor(new Color(189, 195, 199));
+            table.addCell(cell1);
+            
+            PdfPCell cell2 = new PdfPCell(new Paragraph(String.valueOf(entry.getValue())));
+            cell2.setPadding(6f);
+            cell2.setBorderColor(new Color(189, 195, 199));
+            table.addCell(cell2);
+        }
+        
+        PdfPCell totalLabelCell = new PdfPCell(new Paragraph("Total", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+        totalLabelCell.setPadding(8f);
+        totalLabelCell.setBackgroundColor(new Color(236, 240, 241));
+        totalLabelCell.setBorderColor(new Color(189, 195, 199));
+        table.addCell(totalLabelCell);
+        
+        PdfPCell totalValueCell = new PdfPCell(new Paragraph(String.valueOf(total), FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+        totalValueCell.setPadding(8f);
+        totalValueCell.setBackgroundColor(new Color(236, 240, 241));
+        totalValueCell.setBorderColor(new Color(189, 195, 199));
+        table.addCell(totalValueCell);
+        
+        document.add(table);
     }
 
     private DailyExpenseResponse convertToResponse(DailyExpenseEntity entity) {

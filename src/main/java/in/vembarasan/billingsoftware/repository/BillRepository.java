@@ -35,6 +35,9 @@ public interface BillRepository extends JpaRepository<BillEntity, Long> {
     @Query("SELECT COUNT(b) FROM BillEntity b WHERE b.date >= :startDate AND b.date <= :endDate")
     long countOrdersByDateRange(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
 
+    @Query("SELECT COUNT(b) FROM BillEntity b WHERE b.date >= :startDate AND b.date <= :endDate AND (b.billStatus = 'CREDIT' OR b.billStatus = 'credit')")
+    long countCreditOrdersByDateRange(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
+
     @Query("SELECT COUNT(b) FROM BillEntity b WHERE b.date = :today")
     long countTodayOrders(@Param("today") Date today);
 
@@ -52,4 +55,19 @@ public interface BillRepository extends JpaRepository<BillEntity, Long> {
 
     @Query("SELECT COALESCE(b.payment, 'Unknown'), COALESCE(SUM(b.totalPaid), 0) FROM BillEntity b WHERE b.date >= :startDate AND b.date <= :endDate GROUP BY b.payment")
     List<Object[]> sumPaymentWiseSales(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
+
+    @Query("SELECT COALESCE(SUM(b.total), 0) FROM BillEntity b WHERE b.date = :today")
+    Double sumTodayBillsTotal(@Param("today") Date today);
+
+    @Query("SELECT COALESCE(SUM(b.total), 0) FROM BillEntity b WHERE b.date = :today AND (b.billStatus = 'CREDIT' OR b.billStatus = 'credit')")
+    Double sumTodayCreditOrdersAmount(@Param("today") Date today);
+
+    @Query("SELECT COALESCE(SUM(b.creditPaidAmount), 0) FROM BillEntity b WHERE b.date = :today AND (b.billStatus = 'CREDIT' OR b.billStatus = 'credit')")
+    Double sumTodayCreditPaidAmount(@Param("today") Date today);
+
+    @Query("SELECT COALESCE(SUM(b.creditAmount), 0) FROM BillEntity b WHERE b.date = :today AND (b.billStatus = 'CREDIT' OR b.billStatus = 'credit')")
+    Double sumTodayCreditBalanceAmount(@Param("today") Date today);
+
+    @Query("SELECT b FROM BillEntity b WHERE b.date = :today")
+    Page<BillEntity> findTodayBills(@Param("today") Date today, Pageable pageable);
 }

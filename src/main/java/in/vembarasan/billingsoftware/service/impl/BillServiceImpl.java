@@ -38,11 +38,11 @@ public class BillServiceImpl implements BillService {
     public Map<String, String> getNextBillNumber() {
         Date today = new Date(System.currentTimeMillis());
         long count = billRepository.countByDate(today);
-        
+
         SimpleDateFormat sdf = new SimpleDateFormat("yyMMdd");
         String dateStr = sdf.format(today);
         String nextBillNumber = dateStr + (count + 1);
-        
+
         Map<String, String> response = new HashMap<>();
         response.put("billNumber", nextBillNumber);
         return response;
@@ -50,7 +50,7 @@ public class BillServiceImpl implements BillService {
 
     @Override
     public BillResponse createBill(BillRequest request) {
-        
+
         Date today = new Date(System.currentTimeMillis());
         long count = billRepository.countByDate(today);
         SimpleDateFormat sdf = new SimpleDateFormat("yyMMdd");
@@ -60,9 +60,9 @@ public class BillServiceImpl implements BillService {
         double total = request.getTotal() != null ? request.getTotal() : 0.0;
         double totalPaid = request.getTotalPaid() != null ? request.getTotalPaid() : 0.0;
         double creditAmount = request.getCreditAmount() != null ? request.getCreditAmount() : 0.0;
-        
+
         String status = "PENDING";
-        
+
         if (request.getPayment() != null && request.getPayment().equalsIgnoreCase("credit")) {
             status = "CREDIT";
         } else if (Math.abs(total - totalPaid) <= 1.0 && totalPaid > 0) {
@@ -75,8 +75,9 @@ public class BillServiceImpl implements BillService {
         try {
             if (processedParticulars != null && !processedParticulars.trim().isEmpty()) {
                 List<Map<String, Object>> particularsList = objectMapper.readValue(
-                        processedParticulars, new TypeReference<List<Map<String, Object>>>() {});
-                
+                        processedParticulars, new TypeReference<List<Map<String, Object>>>() {
+                        });
+
                 for (Map<String, Object> item : particularsList) {
                     if (item.containsKey("particularId")) {
                         String pId = String.valueOf(item.get("particularId"));
@@ -84,7 +85,7 @@ public class BillServiceImpl implements BillService {
                             item.put("name", p.getName());
                         });
                     }
-                    
+
                     double qty = 0;
                     double price = 0;
                     if (item.containsKey("qty")) {
@@ -126,7 +127,8 @@ public class BillServiceImpl implements BillService {
     }
 
     @Override
-    public Page<BillResponse> getBills(int page, int size, String dateFilter, String startDate, String endDate, String paymentMode, String customerName) {
+    public Page<BillResponse> getBills(int page, int size, String dateFilter, String startDate, String endDate,
+            String paymentMode, String customerName) {
         DateRange dateRange;
         if ("custom_range".equalsIgnoreCase(dateFilter) && startDate != null && endDate != null) {
             dateRange = DateRange.builder()
@@ -136,23 +138,23 @@ public class BillServiceImpl implements BillService {
         } else {
             dateRange = dateFilterService.getDateRange(dateFilter);
         }
-        
-        Pageable pageable = PageRequest.of(page, size, Sort.by("date").descending().and(Sort.by("createdAt").descending()));
-        
+
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by("date").descending().and(Sort.by("createdAt").descending()));
+
         String payment = (paymentMode != null && !paymentMode.trim().isEmpty()) ? paymentMode.trim() : null;
         String customer = (customerName != null && !customerName.trim().isEmpty()) ? customerName.trim() : null;
-        
+
         Page<BillEntity> billsPage = billRepository.findFilteredBills(
                 dateRange.getStartDate(),
                 dateRange.getEndDate(),
                 payment,
                 customer,
-                pageable
-        );
-        
+                pageable);
+
         return billsPage.map(this::mapToResponse);
     }
-    
+
     private BillResponse mapToResponse(BillEntity entity) {
         Object particularsObj = null;
         try {
