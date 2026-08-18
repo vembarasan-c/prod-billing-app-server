@@ -8,6 +8,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import in.vembarasan.billingsoftware.io.CustomerWiseDataResponse;
+import in.vembarasan.billingsoftware.io.EmployeeWiseDataResponse;
+
 import java.util.Map;
 
 @RestController
@@ -28,6 +31,11 @@ public class BillController {
         return billService.createBill(request);
     }
 
+    @PutMapping("/{id}")
+    public BillResponse updateBill(@PathVariable Long id, @RequestBody BillRequest request) {
+        return billService.updateBill(id, request);
+    }
+
     @GetMapping("/get-all-bills")
     public Page<BillResponse> getBills(
             @RequestParam(defaultValue = "0") int page,
@@ -38,5 +46,22 @@ public class BillController {
             @RequestParam(required = false) String paymentMode,
             @RequestParam(required = false) String customerName) {
         return billService.getBills(page, size, dateFilter, startDate, endDate, paymentMode, customerName);
+    }
+    @GetMapping("/customer-wise-data")
+    public Page<CustomerWiseDataResponse> getCustomerWiseData(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return billService.getCustomerWiseData(page, size);
+    }
+
+    @GetMapping("/employee-wise-data")
+    public Page<EmployeeWiseDataResponse> getEmployeeWiseData(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "all") String dateFilter,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String employeeName) {
+        return billService.getEmployeeWiseData(page, size, dateFilter, startDate, endDate, employeeName);
     }
 }
