@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import in.vembarasan.billingsoftware.io.CustomerCreditInfoResponse;
 import in.vembarasan.billingsoftware.io.CustomerWiseDataResponse;
 import in.vembarasan.billingsoftware.io.EmployeeWiseDataResponse;
 
@@ -47,6 +48,7 @@ public class BillController {
             @RequestParam(required = false) String customerName) {
         return billService.getBills(page, size, dateFilter, startDate, endDate, paymentMode, customerName);
     }
+
     @GetMapping("/customer-wise-data")
     public Page<CustomerWiseDataResponse> getCustomerWiseData(
             @RequestParam(defaultValue = "0") int page,
@@ -63,5 +65,10 @@ public class BillController {
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String employeeName) {
         return billService.getEmployeeWiseData(page, size, dateFilter, startDate, endDate, employeeName);
+    }
+
+    @GetMapping("/check-credit")
+    public CustomerCreditInfoResponse checkCustomerCredit(@RequestParam String customerName) {
+        return billService.getCustomerCreditInfo(customerName);
     }
 }

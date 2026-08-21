@@ -72,28 +72,36 @@ public interface BillRepository extends JpaRepository<BillEntity, Long> {
 
     @Query("SELECT b FROM BillEntity b WHERE b.date = :today")
     Page<BillEntity> findTodayBills(@Param("today") Date today, Pageable pageable);
+
     @Query("SELECT new in.vembarasan.billingsoftware.io.CustomerWiseDataResponse(" +
-           "COALESCE(b.customerName, 'Unknown'), " +
-           "COUNT(b.id), " +
-           "SUM(CASE WHEN LOWER(b.billStatus) = 'credit' THEN b.creditAmount ELSE 0.0 END), " +
-           "SUM(b.total)) " +
-           "FROM BillEntity b " +
-           "GROUP BY b.customerName")
+            "COALESCE(b.customerName, 'Unknown'), " +
+            "COUNT(b.id), " +
+            "SUM(CASE WHEN LOWER(b.billStatus) = 'credit' THEN b.creditAmount ELSE 0.0 END), " +
+            "SUM(b.total)) " +
+            "FROM BillEntity b " +
+            "GROUP BY b.customerName")
     Page<CustomerWiseDataResponse> getCustomerWiseData(Pageable pageable);
+
     @Query("SELECT new in.vembarasan.billingsoftware.io.EmployeeWiseDataResponse(" +
-           "COALESCE(b.employee, 'Unknown'), " +
-           "COUNT(b.id), " +
-           "SUM(b.total), " +
-           "SUM(CASE WHEN LOWER(b.billStatus) = 'credit' THEN 1L ELSE 0L END), " +
-           "SUM(CASE WHEN LOWER(b.billStatus) = 'credit' THEN b.creditAmount ELSE 0.0 END)) " +
-           "FROM BillEntity b " +
-           "WHERE (cast(:startDate as date) IS NULL OR b.date >= :startDate) " +
-           "AND (cast(:endDate as date) IS NULL OR b.date <= :endDate) " +
-           "AND (:employeeName IS NULL OR b.employee = :employeeName) " +
-           "GROUP BY b.employee")
+            "COALESCE(b.employee, 'Unknown'), " +
+            "COUNT(b.id), " +
+            "SUM(b.total), " +
+            "SUM(CASE WHEN LOWER(b.billStatus) = 'credit' THEN 1L ELSE 0L END), " +
+            "SUM(CASE WHEN LOWER(b.billStatus) = 'credit' THEN b.creditAmount ELSE 0.0 END)) " +
+            "FROM BillEntity b " +
+            "WHERE (cast(:startDate as date) IS NULL OR b.date >= :startDate) " +
+            "AND (cast(:endDate as date) IS NULL OR b.date <= :endDate) " +
+            "AND (:employeeName IS NULL OR b.employee = :employeeName) " +
+            "GROUP BY b.employee")
     Page<EmployeeWiseDataResponse> getEmployeeWiseData(
             @Param("startDate") Date startDate,
             @Param("endDate") Date endDate,
             @Param("employeeName") String employeeName,
             Pageable pageable);
+
+    @Query("SELECT COUNT(b) FROM BillEntity b WHERE LOWER(b.customerName) = LOWER(:customerName) AND (LOWER(b.billStatus) = 'credit')")
+    long countCreditOrdersByCustomerName(@Param("customerName") String customerName);
+
+    @Query("SELECT COALESCE(SUM(b.creditAmount), 0.0) - COALESCE(SUM(b.creditPaidAmount), 0.0) FROM BillEntity b WHERE LOWER(b.customerName) = LOWER(:customerName) AND (LOWER(b.billStatus) = 'credit')")
+    Double sumCreditBalanceByCustomerName(@Param("customerName") String customerName);
 }

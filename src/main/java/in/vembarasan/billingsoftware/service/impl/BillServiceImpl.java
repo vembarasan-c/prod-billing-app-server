@@ -3,6 +3,7 @@ package in.vembarasan.billingsoftware.service.impl;
 import in.vembarasan.billingsoftware.entity.BillEntity;
 import in.vembarasan.billingsoftware.io.BillRequest;
 import in.vembarasan.billingsoftware.io.BillResponse;
+import in.vembarasan.billingsoftware.io.CustomerCreditInfoResponse;
 import in.vembarasan.billingsoftware.io.CustomerWiseDataResponse;
 import in.vembarasan.billingsoftware.io.EmployeeWiseDataResponse;
 import in.vembarasan.billingsoftware.repository.BillRepository;
@@ -265,7 +266,8 @@ public class BillServiceImpl implements BillService {
     }
 
     @Override
-    public Page<EmployeeWiseDataResponse> getEmployeeWiseData(int page, int size, String dateFilter, String startDate, String endDate, String employeeName) {
+    public Page<EmployeeWiseDataResponse> getEmployeeWiseData(int page, int size, String dateFilter, String startDate,
+            String endDate, String employeeName) {
         Date sqlStartDate = null;
         Date sqlEndDate = null;
 
@@ -284,5 +286,25 @@ public class BillServiceImpl implements BillService {
 
         Pageable pageable = PageRequest.of(page, size);
         return billRepository.getEmployeeWiseData(sqlStartDate, sqlEndDate, empName, pageable);
+    }
+
+    @Override
+    public CustomerCreditInfoResponse getCustomerCreditInfo(String customerName) {
+        if (customerName == null || customerName.trim().isEmpty()) {
+            return CustomerCreditInfoResponse.builder()
+                    .iscustomerHasCredit(false)
+                    .creditOrdersCount(0)
+                    .balanceToPay(0.0)
+                    .build();
+        }
+
+        long creditOrdersCount = billRepository.countCreditOrdersByCustomerName(customerName.trim());
+        Double balanceToPay = billRepository.sumCreditBalanceByCustomerName(customerName.trim());
+
+        return CustomerCreditInfoResponse.builder()
+                .iscustomerHasCredit(creditOrdersCount > 0)
+                .creditOrdersCount(creditOrdersCount)
+                .balanceToPay(balanceToPay != null ? balanceToPay : 0.0)
+                .build();
     }
 }
