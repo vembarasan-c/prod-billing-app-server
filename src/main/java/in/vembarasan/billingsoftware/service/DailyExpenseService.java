@@ -31,4 +31,6 @@ public interface DailyExpenseService {
     java.util.List<in.vembarasan.billingsoftware.io.DailyReportDataResponse> getDailyReports(Date startDate, Date endDate);
 
     byte[] generateDailyReportPdf(String dailyExpenseId);
+
+    Double getLastClosedAmount(String branch, Date date);
 }

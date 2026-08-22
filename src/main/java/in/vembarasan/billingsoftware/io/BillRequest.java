@@ -12,6 +12,7 @@ import java.sql.Date;
 @AllArgsConstructor
 @Builder
 public class BillRequest {
+    private String billNumber;
     private String employee;
     private String customerName;
     private String customerEmail;

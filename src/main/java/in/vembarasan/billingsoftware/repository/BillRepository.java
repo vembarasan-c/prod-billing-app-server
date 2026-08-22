@@ -99,9 +99,22 @@ public interface BillRepository extends JpaRepository<BillEntity, Long> {
             @Param("employeeName") String employeeName,
             Pageable pageable);
 
-    @Query("SELECT COUNT(b) FROM BillEntity b WHERE LOWER(b.customerName) = LOWER(:customerName) AND (LOWER(b.billStatus) = 'credit')")
+    @Query("SELECT COUNT(b) FROM BillEntity b WHERE LOWER(b.customerName) = :customerName AND (LOWER(b.billStatus) = 'credit')")
     long countCreditOrdersByCustomerName(@Param("customerName") String customerName);
 
-    @Query("SELECT COALESCE(SUM(b.creditAmount), 0.0) - COALESCE(SUM(b.creditPaidAmount), 0.0) FROM BillEntity b WHERE LOWER(b.customerName) = LOWER(:customerName) AND (LOWER(b.billStatus) = 'credit')")
+    @Query("SELECT COALESCE(SUM(b.creditAmount), 0.0) FROM BillEntity b WHERE LOWER(b.customerName) = :customerName AND (LOWER(b.billStatus) = 'credit')")
     Double sumCreditBalanceByCustomerName(@Param("customerName") String customerName);
+
+    @Query("SELECT b FROM BillEntity b WHERE " +
+           "((:status IS NOT NULL AND LOWER(b.billStatus) = :status) OR " +
+           " (:status IS NULL AND (LOWER(b.billStatus) = 'credit' OR b.creditAmount > 0))) " +
+           "AND (cast(:startDate as date) IS NULL OR b.date >= :startDate) " +
+           "AND (cast(:endDate as date) IS NULL OR b.date <= :endDate) " +
+           "AND (:customerName IS NULL OR LOWER(b.customerName) LIKE :customerName)")
+    Page<BillEntity> findCreditBills(
+            @Param("startDate") Date startDate,
+            @Param("endDate") Date endDate,
+            @Param("customerName") String customerName,
+            @Param("status") String status,
+            Pageable pageable);
 }

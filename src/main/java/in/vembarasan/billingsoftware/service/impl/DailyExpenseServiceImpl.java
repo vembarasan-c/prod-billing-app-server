@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -47,11 +48,18 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
     public DailyExpenseResponse add(DailyExpenseRequest request) {
         String dailyExpenseId = generateDailyExpenseId();
         
+        Double lastClosed = request.getLastClosed();
+        if (lastClosed == null || lastClosed == 0.0) {
+            lastClosed = getLastClosedAmount(request.getBranch(), request.getDate());
+        }
+
         DailyExpenseEntity dailyExpense = DailyExpenseEntity.builder()
                 .dailyExpenseId(dailyExpenseId)
                 .date(request.getDate())
                 .branch(request.getBranch())
                 .cashInHand(request.getCashInHand())
+                .lastClosed(lastClosed)
+                .shortage(request.getShortage())
                 .image(request.getImage())
                 .totalCash(request.getTotalCash())
                 .expensive(convertToJson(request.getExpensive()))
@@ -80,6 +88,12 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
         }
         if (request.getCashInHand() != null) {
             existingExpense.setCashInHand(request.getCashInHand());
+        }
+        if (request.getLastClosed() != null) {
+            existingExpense.setLastClosed(request.getLastClosed());
+        }
+        if (request.getShortage() != null) {
+            existingExpense.setShortage(request.getShortage());
         }
         if (request.getImage() != null) {
             existingExpense.setImage(request.getImage());
@@ -187,6 +201,13 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
         response.setDate(entity.getDate());
         response.setBranch(entity.getBranch());
         response.setCashInHand(entity.getCashInHand());
+        
+        Double lastClosed = entity.getLastClosed();
+        if (lastClosed == null || lastClosed == 0.0) {
+            lastClosed = getLastClosedAmount(entity.getBranch(), entity.getDate());
+        }
+        response.setLastClosed(lastClosed);
+        response.setShortage(entity.getShortage());
         response.setTotalCash(entity.getTotalCash());
         response.setImage(entity.getImage());
         
@@ -430,11 +451,18 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
     }
 
     private DailyExpenseResponse convertToResponse(DailyExpenseEntity entity) {
+        Double lastClosed = entity.getLastClosed();
+        if (lastClosed == null || lastClosed == 0.0) {
+            lastClosed = getLastClosedAmount(entity.getBranch(), entity.getDate());
+        }
+
         return DailyExpenseResponse.builder()
                 .dailyExpenseId(entity.getDailyExpenseId())
                 .date(entity.getDate())
                 .branch(entity.getBranch())
                 .cashInHand(entity.getCashInHand())
+                .lastClosed(lastClosed)
+                .shortage(entity.getShortage())
                 .image(entity.getImage())
                 .totalCash(entity.getTotalCash())
                 .expensive(parseJson(entity.getExpensive(), new TypeReference<>() {}))
@@ -447,6 +475,39 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+    }
+
+    @Override
+    public Double getLastClosedAmount(String branch, Date date) {
+        if (date == null) return 0.0;
+
+        java.time.LocalDate targetLocalDate = date.toLocalDate();
+        java.time.LocalDate yesterdayLocalDate = targetLocalDate.minusDays(1);
+        Date yesterdayDate = Date.valueOf(yesterdayLocalDate);
+
+        // 1. Check for yesterday's exact record
+        Optional<DailyExpenseEntity> yesterdayRecord;
+        if (branch != null && !branch.trim().isEmpty()) {
+            yesterdayRecord = dailyExpenseRepository.findByBranchAndDate(branch, yesterdayDate);
+        } else {
+            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 1);
+            org.springframework.data.domain.Page<DailyExpenseEntity> page = dailyExpenseRepository.findByDate(yesterdayDate, pageable);
+            yesterdayRecord = page.hasContent() ? Optional.of(page.getContent().get(0)) : Optional.empty();
+        }
+
+        if (yesterdayRecord.isPresent() && yesterdayRecord.get().getCashInHand() != null) {
+            return yesterdayRecord.get().getCashInHand();
+        }
+
+        // 2. Fallback: check most recent record prior to target date
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 1);
+        org.springframework.data.domain.Page<DailyExpenseEntity> previousPage = dailyExpenseRepository.findPreviousRecords(branch, date, pageable);
+        if (previousPage.hasContent()) {
+            DailyExpenseEntity previous = previousPage.getContent().get(0);
+            return previous.getCashInHand() != null ? previous.getCashInHand() : 0.0;
+        }
+
+        return 0.0;
     }
 
     private String convertToJson(Object object) {

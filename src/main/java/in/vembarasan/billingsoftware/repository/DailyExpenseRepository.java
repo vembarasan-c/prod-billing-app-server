@@ -31,4 +31,7 @@ public interface DailyExpenseRepository extends JpaRepository<DailyExpenseEntity
 
     @Query("SELECT d FROM DailyExpenseEntity d WHERE d.branch = :branch AND d.date = :date")
     Optional<DailyExpenseEntity> findByBranchAndDate(@Param("branch") String branch, @Param("date") Date date);
+
+    @Query("SELECT d FROM DailyExpenseEntity d WHERE (:branch IS NULL OR d.branch = :branch) AND d.date < :date ORDER BY d.date DESC")
+    Page<DailyExpenseEntity> findPreviousRecords(@Param("branch") String branch, @Param("date") Date date, Pageable pageable);
 }

@@ -36,6 +36,12 @@ public class DailyExpenseEntity {
     @Column(name = "cash_in_hand")
     private Double cashInHand;
 
+    @Column(name = "last_closed")
+    private Double lastClosed;
+
+    @Column(name = "shortage")
+    private Double shortage;
+
     @Column(columnDefinition = "TEXT")
     private String image;
 

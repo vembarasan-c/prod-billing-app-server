@@ -215,6 +215,20 @@ public class ExpenseController {
         return dailyExpenseService.getByBranchAndDateRange(branch, startDate, endDate, page, size, sortBy);
     }
 
+    @GetMapping("/daily-expenses/last-closed")
+    public java.util.Map<String, Double> getLastClosedAmount(
+            @RequestParam(required = false) String branch,
+            @RequestParam(required = false) String date) {
+        Date sqlDate;
+        if (date != null && !date.trim().isEmpty()) {
+            sqlDate = Date.valueOf(date);
+        } else {
+            sqlDate = Date.valueOf(java.time.LocalDate.now());
+        }
+        Double lastClosed = dailyExpenseService.getLastClosedAmount(branch, sqlDate);
+        return java.util.Collections.singletonMap("lastClosed", lastClosed != null ? lastClosed : 0.0);
+    }
+
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/daily-expenses/{dailyExpenseId}")
     public void deleteDailyExpense(@PathVariable String dailyExpenseId) {

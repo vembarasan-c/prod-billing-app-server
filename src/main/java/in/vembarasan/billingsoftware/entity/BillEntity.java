@@ -16,7 +16,9 @@ import java.sql.Timestamp;
 @Entity
 @Table(name = "tbl_bills", indexes = {
         @Index(name = "idx_bill_date", columnList = "date"),
-        @Index(name = "idx_bill_number", columnList = "billNumber", unique = true)
+        @Index(name = "idx_bill_number", columnList = "billNumber", unique = true),
+        @Index(name = "idx_bill_status", columnList = "billStatus"),
+        @Index(name = "idx_bill_customer_name", columnList = "customerName")
 })
 @Data
 @AllArgsConstructor

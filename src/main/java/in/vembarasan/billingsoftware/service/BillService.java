@@ -9,6 +9,8 @@ import org.springframework.data.domain.Page;
 
 import java.util.Map;
 
+import in.vembarasan.billingsoftware.io.UpdateCreditStatusRequest;
+
 public interface BillService {
     Map<String, String> getNextBillNumber();
 
@@ -25,4 +27,9 @@ public interface BillService {
             String endDate, String employeeName);
 
     CustomerCreditInfoResponse getCustomerCreditInfo(String customerName);
+
+    Page<BillResponse> getCreditBills(int page, int size, String dateFilter, String startDate, String endDate,
+            String customerName, String status);
+
+    BillResponse updateCreditBillStatus(Long id, UpdateCreditStatusRequest request);
 }

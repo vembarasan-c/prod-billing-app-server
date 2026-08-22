@@ -19,6 +19,8 @@ public class DailyExpenseResponse {
     private Date date;
     private String branch;
     private Double cashInHand;
+    private Double lastClosed;
+    private Double shortage;
     private String image;
     private Double totalCash;
     private List<DailyExpenseRequest.ExpenseItem> expensive;

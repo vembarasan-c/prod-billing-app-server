@@ -17,6 +17,8 @@ public class DailyReportDataResponse {
     private Date date;
     private String branch;
     private Double cashInHand;
+    private Double lastClosed;
+    private Double shortage;
     private Double totalCash;
     private String image;
 

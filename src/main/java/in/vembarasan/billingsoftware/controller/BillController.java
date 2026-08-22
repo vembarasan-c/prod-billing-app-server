@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import in.vembarasan.billingsoftware.io.CustomerCreditInfoResponse;
 import in.vembarasan.billingsoftware.io.CustomerWiseDataResponse;
 import in.vembarasan.billingsoftware.io.EmployeeWiseDataResponse;
+import in.vembarasan.billingsoftware.io.UpdateCreditStatusRequest;
 
 import java.util.Map;
 
@@ -70,5 +71,31 @@ public class BillController {
     @GetMapping("/check-credit")
     public CustomerCreditInfoResponse checkCustomerCredit(@RequestParam String customerName) {
         return billService.getCustomerCreditInfo(customerName);
+    }
+
+    @GetMapping("/credit-bills")
+    public Page<BillResponse> getCreditBills(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "all") String dateFilter,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String customerName,
+            @RequestParam(required = false) String status) {
+        return billService.getCreditBills(page, size, dateFilter, startDate, endDate, customerName, status);
+    }
+
+    @PutMapping("/credit-bills/{id}/status")
+    public BillResponse updateCreditBillStatus(
+            @PathVariable Long id,
+            @RequestBody(required = false) UpdateCreditStatusRequest request) {
+        return billService.updateCreditBillStatus(id, request != null ? request : new UpdateCreditStatusRequest());
+    }
+
+    @PutMapping("/{id}/credit-status")
+    public BillResponse updateCreditStatusAlias(
+            @PathVariable Long id,
+            @RequestBody(required = false) UpdateCreditStatusRequest request) {
+        return billService.updateCreditBillStatus(id, request != null ? request : new UpdateCreditStatusRequest());
     }
 }
