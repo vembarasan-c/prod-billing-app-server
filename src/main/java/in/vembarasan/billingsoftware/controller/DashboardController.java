@@ -237,7 +237,8 @@ public class DashboardController {
             billMap.put("totalPaid", bill.getTotalPaid());
             billMap.put("total", bill.getTotal());
             billMap.put("creditAmount", bill.getCreditAmount());
-            billMap.put("totalWithGst", bill.getTotalWithGst());
+            billMap.put("totalWithGst", bill.getActualTotal() != null ? bill.getActualTotal() : bill.getTotalWithGst());
+            billMap.put("actualTotal", bill.getActualTotal() != null ? bill.getActualTotal() : bill.getTotalWithGst());
             billMap.put("totalItems", bill.getTotalItems());
             billMap.put("billStatus", bill.getBillStatus());
             billMap.put("creditPaidAmount", bill.getCreditPaidAmount());

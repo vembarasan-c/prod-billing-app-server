@@ -104,14 +104,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     public List<EmployeeNameResponse> getEmployeeNames() {
-        List<EmployeeEntity> employees = employeeRepository.findAll();
-
-        return employees.stream()
-                .map(e -> EmployeeNameResponse.builder()
-                        .id(e.getId())
-                        .fullName(e.getFirstName() + (e.getLastName() != null ? " " + e.getLastName() : ""))
-                        .build())
-                .collect(Collectors.toList());
+        return employeeRepository.findAllEmployeeNames();
     }
 
     private EmployeeResponse mapToResponse(EmployeeEntity employee) {

@@ -57,6 +57,8 @@ public class BillEntity {
 
     private Double totalWithGst;
 
+    private Double actualTotal;
+
     private Integer totalItems;
 
     // e.g. PAID, PENDING, CREDIT

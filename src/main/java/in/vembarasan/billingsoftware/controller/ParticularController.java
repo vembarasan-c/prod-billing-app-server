@@ -41,6 +41,16 @@ public class ParticularController {
         return particularService.getAllParticularsList();
     }
 
+    @GetMapping("/getAllParticularsForBill")
+    public List<ParticularResponse> getAllParticularsFast(@RequestParam(required = false) Boolean activeOnly) {
+        return particularService.getAllParticularsFast(activeOnly);
+    }
+
+    @GetMapping("/getFastParticulars")
+    public List<ParticularResponse> getFastParticulars(@RequestParam(required = false) Boolean activeOnly) {
+        return particularService.getAllParticularsFast(activeOnly);
+    }
+
     @GetMapping("/getParticular/{particularId}")
     public ParticularResponse getParticular(@PathVariable String particularId) {
         try {

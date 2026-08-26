@@ -11,6 +11,7 @@ public interface ParticularService {
     ParticularResponse createParticular(ParticularRequest request);
     Page<ParticularResponse> getParticulars(int page, int size);
     List<ParticularResponse> getAllParticularsList();
+    List<ParticularResponse> getAllParticularsFast(Boolean activeOnly);
     ParticularResponse getParticularById(String particularId);
     ParticularDetailsResponse getParticularDetailsById(String particularId);
     ParticularResponse updateParticular(String particularId, ParticularRequest request);

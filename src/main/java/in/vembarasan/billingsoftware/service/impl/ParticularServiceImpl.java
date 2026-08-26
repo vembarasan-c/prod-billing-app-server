@@ -65,10 +65,16 @@ public class ParticularServiceImpl implements ParticularService {
     @Override
     @Transactional(readOnly = true)
     public List<ParticularResponse> getAllParticularsList() {
-        return particularRepository.findAll(Sort.by("name").ascending())
-                .stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
+        return particularRepository.findAllOptimizedParticulars();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ParticularResponse> getAllParticularsFast(Boolean activeOnly) {
+        if (Boolean.TRUE.equals(activeOnly)) {
+            return particularRepository.findAllActiveOptimizedParticulars();
+        }
+        return particularRepository.findAllOptimizedParticulars();
     }
 
     @Override

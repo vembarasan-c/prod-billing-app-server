@@ -25,6 +25,7 @@ public class BillResponse {
     private Double total;
     private Double creditAmount;
     private Double totalWithGst;
+    private Double actualTotal;
     private Integer totalItems;
     private String billStatus;
     private Double creditPaidAmount;

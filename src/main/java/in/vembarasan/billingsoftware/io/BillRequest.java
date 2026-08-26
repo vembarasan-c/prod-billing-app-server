@@ -23,6 +23,7 @@ public class BillRequest {
     private Double total;
     private Double creditAmount;
     private Double totalWithGst;
+    private Double actualTotal;
     private Integer totalItems;
     private Double creditPaidAmount;
     private String particulars; // JSON String

@@ -66,7 +66,9 @@ public class BillServiceImpl implements BillService {
         String billNumber = (reqBillNumber != null && !reqBillNumber.trim().isEmpty()) ? reqBillNumber : baseBillNumber;
 
         double total = request.getTotal() != null ? request.getTotal() : 0.0;
-        double totalWithGst = request.getTotalWithGst() != null ? request.getTotalWithGst() : 0.0;
+        Double totalWithGstVal = request.getTotalWithGst() != null ? request.getTotalWithGst() : request.getTotal();
+        Double actualTotalVal = request.getActualTotal() != null ? request.getActualTotal() : request.getTotalWithGst();
+        double actualTotal = actualTotalVal != null ? actualTotalVal : 0.0;
         double totalPaid = request.getTotalPaid() != null ? request.getTotalPaid() : 0.0;
         double creditAmount = request.getCreditAmount() != null ? request.getCreditAmount() : 0.0;
 
@@ -74,7 +76,7 @@ public class BillServiceImpl implements BillService {
             totalPaid = Math.max(0.0, total - creditAmount);
         }
 
-        boolean isNonGst = Math.abs(total - totalWithGst) < 0.01 || (reqBillNumber != null && reqBillNumber.endsWith("-E"));
+        boolean isNonGst = Math.abs(total - actualTotal) < 0.01 || (reqBillNumber != null && reqBillNumber.endsWith("-E"));
         if (isNonGst && !billNumber.endsWith("-E")) {
             billNumber = billNumber + "-E";
         } else if (!isNonGst && billNumber.endsWith("-E")) {
@@ -134,7 +136,8 @@ public class BillServiceImpl implements BillService {
                 .totalPaid(totalPaid)
                 .total(request.getTotal())
                 .creditAmount(request.getCreditAmount())
-                .totalWithGst(request.getTotalWithGst())
+                .totalWithGst(totalWithGstVal)
+                .actualTotal(actualTotalVal)
                 .totalItems(request.getTotalItems())
                 .creditPaidAmount(request.getCreditPaidAmount())
                 .particulars(processedParticulars)
@@ -200,13 +203,15 @@ public class BillServiceImpl implements BillService {
             processedParticulars = request.getParticulars();
         }
 
-        double totalWithGst = request.getTotalWithGst() != null ? request.getTotalWithGst() : 0.0;
+        Double totalWithGstVal = request.getTotalWithGst() != null ? request.getTotalWithGst() : request.getTotal();
+        Double actualTotalVal = request.getActualTotal() != null ? request.getActualTotal() : request.getTotalWithGst();
+        double actualTotal = actualTotalVal != null ? actualTotalVal : 0.0;
         String curBillNum = bill.getBillNumber();
         if (request.getBillNumber() != null && !request.getBillNumber().trim().isEmpty()) {
             curBillNum = request.getBillNumber();
         }
 
-        boolean isNonGst = Math.abs(total - totalWithGst) < 0.01 || (request.getBillNumber() != null && request.getBillNumber().endsWith("-E"));
+        boolean isNonGst = Math.abs(total - actualTotal) < 0.01 || (request.getBillNumber() != null && request.getBillNumber().endsWith("-E"));
         if (isNonGst && !curBillNum.endsWith("-E")) {
             curBillNum = curBillNum + "-E";
         } else if (!isNonGst && curBillNum.endsWith("-E")) {
@@ -223,7 +228,8 @@ public class BillServiceImpl implements BillService {
         bill.setTotalPaid(totalPaid);
         bill.setTotal(request.getTotal());
         bill.setCreditAmount(request.getCreditAmount());
-        bill.setTotalWithGst(request.getTotalWithGst());
+        bill.setTotalWithGst(totalWithGstVal);
+        bill.setActualTotal(actualTotalVal);
         bill.setTotalItems(request.getTotalItems());
         bill.setCreditPaidAmount(request.getCreditPaidAmount());
         bill.setParticulars(processedParticulars);
@@ -281,6 +287,9 @@ public class BillServiceImpl implements BillService {
             totalPaid = Math.max(0.0, total - creditAmount);
         }
 
+        Double totalWithGstVal = entity.getTotalWithGst() != null ? entity.getTotalWithGst() : entity.getTotal();
+        Double actualTotalVal = entity.getActualTotal() != null ? entity.getActualTotal() : totalWithGstVal;
+
         return BillResponse.builder()
                 .id(entity.getId())
                 .billNumber(entity.getBillNumber())
@@ -294,7 +303,8 @@ public class BillServiceImpl implements BillService {
                 .totalPaid(totalPaid)
                 .total(entity.getTotal())
                 .creditAmount(entity.getCreditAmount())
-                .totalWithGst(entity.getTotalWithGst())
+                .totalWithGst(totalWithGstVal)
+                .actualTotal(actualTotalVal)
                 .totalItems(entity.getTotalItems())
                 .billStatus(entity.getBillStatus())
                 .creditPaidAmount(entity.getCreditPaidAmount())
