@@ -124,14 +124,14 @@ public class DashboardController {
         Double totalAmount = billRepository.sumTotalAmountByDateRange(sqlStartDate, sqlEndDate);
         Double paidAmount = billRepository.sumPaidAmountByDateRange(sqlStartDate, sqlEndDate);
         Double creditAmount = billRepository.sumCreditAmountByDateRange(sqlStartDate, sqlEndDate);
-        long completedOrders = billRepository.countOrdersByDateRange(sqlStartDate, sqlEndDate);
+        long completedOrders = billRepository.countPaidOrdersByDateRange(sqlStartDate, sqlEndDate);
 
         List<Object[]> customerDataQuery = billRepository.sumCustomerWiseSales(sqlStartDate, sqlEndDate);
         List<Map<String, Object>> customerWiseData = new ArrayList<>();
         for (Object[] row : customerDataQuery) {
             Map<String, Object> cMap = new HashMap<>();
             cMap.put("customer", row[0] != null ? String.valueOf(row[0]) : "Unknown");
-            cMap.put("totalAmount", row[1] != null ? ((Number) row[1]).doubleValue() : 0.0);
+            cMap.put("totalAmount", row[1] != null ? roundToTwoDecimals(((Number) row[1]).doubleValue()) : 0.0);
             customerWiseData.add(cMap);
         }
 
@@ -140,7 +140,7 @@ public class DashboardController {
         for (Object[] row : employeeDataQuery) {
             Map<String, Object> eMap = new HashMap<>();
             eMap.put("employeeName", row[0] != null ? String.valueOf(row[0]) : "Unknown");
-            eMap.put("totalAmount", row[1] != null ? ((Number) row[1]).doubleValue() : 0.0);
+            eMap.put("totalAmount", row[1] != null ? roundToTwoDecimals(((Number) row[1]).doubleValue()) : 0.0);
             employeeWiseData.add(eMap);
         }
 
@@ -148,7 +148,7 @@ public class DashboardController {
         Map<String, Double> paymentWiseData = new HashMap<>();
         for (Object[] row : paymentDataQuery) {
             String pType = row[0] != null ? String.valueOf(row[0]).toUpperCase() : "UNKNOWN";
-            Double pAmt = row[1] != null ? ((Number) row[1]).doubleValue() : 0.0;
+            Double pAmt = row[1] != null ? roundToTwoDecimals(((Number) row[1]).doubleValue()) : 0.0;
             paymentWiseData.put(pType, pAmt);
         }
 
@@ -170,7 +170,7 @@ public class DashboardController {
             Map<String, Object> map = new HashMap<>();
             map.put("date", d.toString());
             map.put("day", current.getDayOfWeek().toString());
-            map.put("amount", last7DaysMap.getOrDefault(d.toString(), 0.0));
+            map.put("amount", roundToTwoDecimals(last7DaysMap.getOrDefault(d.toString(), 0.0)));
             last7DaysSales.add(map);
             current = current.plusDays(1);
         }
@@ -178,9 +178,9 @@ public class DashboardController {
         Map<String, Object> kpis = new HashMap<>();
         kpis.put("todayOrderCount", todayOrderCount);
         kpis.put("todayCreditOrderCount", todayCreditOrderCount);
-        kpis.put("totalAmount", totalAmount);
-        kpis.put("paidAmount", paidAmount);
-        kpis.put("creditAmount", creditAmount);
+        kpis.put("totalAmount", roundToTwoDecimals(totalAmount));
+        kpis.put("paidAmount", roundToTwoDecimals(paidAmount));
+        kpis.put("creditAmount", roundToTwoDecimals(creditAmount));
         kpis.put("completedOrders", completedOrders);
 
         customerWiseData
@@ -248,9 +248,9 @@ public class DashboardController {
             try {
                 if (bill.getParticulars() != null && !bill.getParticulars().isEmpty()) {
                     List<Map<String, Object>> particularsList = objectMapper.readValue(
-                        bill.getParticulars(), 
-                        new TypeReference<List<Map<String, Object>>>() {}
-                    );
+                            bill.getParticulars(),
+                            new TypeReference<List<Map<String, Object>>>() {
+                            });
                     billMap.put("particulars", particularsList);
                 } else {
                     billMap.put("particulars", new ArrayList<>());
@@ -266,6 +266,13 @@ public class DashboardController {
         response.put("bills", mappedBillsPage);
 
         return ResponseEntity.ok(response);
+    }
+
+    private Double roundToTwoDecimals(Double value) {
+        if (value == null) {
+            return 0.0;
+        }
+        return Math.round(value * 100.0) / 100.0;
     }
 
 }

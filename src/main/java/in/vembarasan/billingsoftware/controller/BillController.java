@@ -39,7 +39,7 @@ public class BillController {
     }
 
     @GetMapping("/get-all-bills")
-    public Page<BillResponse> getBills(
+    public Map<String, Object> getBills(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "today") String dateFilter,

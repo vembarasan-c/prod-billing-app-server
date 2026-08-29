@@ -18,7 +18,7 @@ public interface BillService {
 
     BillResponse updateBill(Long id, BillRequest request);
 
-    Page<BillResponse> getBills(int page, int size, String dateFilter, String startDate, String endDate,
+    Map<String, Object> getBills(int page, int size, String dateFilter, String startDate, String endDate,
             String paymentMode, String customerName);
 
     Page<CustomerWiseDataResponse> getCustomerWiseData(int page, int size);

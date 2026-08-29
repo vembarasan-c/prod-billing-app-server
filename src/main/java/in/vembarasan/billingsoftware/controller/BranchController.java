@@ -4,6 +4,7 @@ import in.vembarasan.billingsoftware.io.BranchRequest;
 import in.vembarasan.billingsoftware.io.BranchResponse;
 import in.vembarasan.billingsoftware.service.BranchService;
 import lombok.RequiredArgsConstructor;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +32,16 @@ public class BranchController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return branchService.getBranches(page, size);
+    }
+
+    @GetMapping("/getAllBranchesList")
+    public List<BranchResponse> getAllBranchesList() {
+        return branchService.getAllBranches();
+    }
+
+    @GetMapping("/all")
+    public List<BranchResponse> getAllBranches() {
+        return branchService.getAllBranches();
     }
 
     @GetMapping("/{id}")

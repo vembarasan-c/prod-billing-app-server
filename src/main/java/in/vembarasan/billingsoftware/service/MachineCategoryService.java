@@ -1,5 +1,6 @@
 package in.vembarasan.billingsoftware.service;
 
+import in.vembarasan.billingsoftware.io.MachineCategoryReadingResponse;
 import in.vembarasan.billingsoftware.io.MachineCategoryRequest;
 import in.vembarasan.billingsoftware.io.MachineCategoryResponse;
 import org.springframework.data.domain.Page;
@@ -12,4 +13,5 @@ public interface MachineCategoryService {
     MachineCategoryResponse getCategoryById(String categoryId);
     MachineCategoryResponse updateCategory(String categoryId, MachineCategoryRequest request);
     void deleteCategory(String categoryId);
+    List<MachineCategoryReadingResponse> getTodayMachineCategoryReadingCounts();
 }

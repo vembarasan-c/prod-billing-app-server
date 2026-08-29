@@ -1,5 +1,6 @@
 package in.vembarasan.billingsoftware.controller;
 
+import in.vembarasan.billingsoftware.io.MachineCategoryReadingResponse;
 import in.vembarasan.billingsoftware.io.MachineCategoryRequest;
 import in.vembarasan.billingsoftware.io.MachineCategoryResponse;
 import in.vembarasan.billingsoftware.io.MachineRequest;
@@ -43,6 +44,11 @@ public class MachineController {
     @GetMapping("/getAllMachineCategoriesList")
     public List<MachineCategoryResponse> getAllMachineCategoriesList() {
         return categoryService.getAllCategoriesList();
+    }
+
+    @GetMapping("/todayMachineCategoryReadingCounts")
+    public List<MachineCategoryReadingResponse> getTodayMachineCategoryReadingCounts() {
+        return categoryService.getTodayMachineCategoryReadingCounts();
     }
 
     @GetMapping("/getMachineCategory/{id}")

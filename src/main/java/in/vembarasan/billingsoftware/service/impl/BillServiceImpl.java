@@ -76,7 +76,8 @@ public class BillServiceImpl implements BillService {
             totalPaid = Math.max(0.0, total - creditAmount);
         }
 
-        boolean isNonGst = Math.abs(total - actualTotal) < 0.01 || (reqBillNumber != null && reqBillNumber.endsWith("-E"));
+        boolean isNonGst = Math.abs(total - actualTotal) < 0.01
+                || (reqBillNumber != null && reqBillNumber.endsWith("-E"));
         if (isNonGst && !billNumber.endsWith("-E")) {
             billNumber = billNumber + "-E";
         } else if (!isNonGst && billNumber.endsWith("-E")) {
@@ -211,7 +212,8 @@ public class BillServiceImpl implements BillService {
             curBillNum = request.getBillNumber();
         }
 
-        boolean isNonGst = Math.abs(total - actualTotal) < 0.01 || (request.getBillNumber() != null && request.getBillNumber().endsWith("-E"));
+        boolean isNonGst = Math.abs(total - actualTotal) < 0.01
+                || (request.getBillNumber() != null && request.getBillNumber().endsWith("-E"));
         if (isNonGst && !curBillNum.endsWith("-E")) {
             curBillNum = curBillNum + "-E";
         } else if (!isNonGst && curBillNum.endsWith("-E")) {
@@ -241,7 +243,7 @@ public class BillServiceImpl implements BillService {
     }
 
     @Override
-    public Page<BillResponse> getBills(int page, int size, String dateFilter, String startDate, String endDate,
+    public Map<String, Object> getBills(int page, int size, String dateFilter, String startDate, String endDate,
             String paymentMode, String customerName) {
         DateRange dateRange;
         if ("custom_range".equalsIgnoreCase(dateFilter) && startDate != null && endDate != null) {
@@ -266,7 +268,40 @@ public class BillServiceImpl implements BillService {
                 customer,
                 pageable);
 
-        return billsPage.map(this::mapToResponse);
+        Page<BillResponse> mappedBillsPage = billsPage.map(this::mapToResponse);
+
+        // Calculate KPIs using the exact same dateRange
+        Date sqlStartDate = dateRange.getStartDate();
+        Date sqlEndDate = dateRange.getEndDate();
+
+        long todayOrderCount = billRepository.countOrdersByDateRange(sqlStartDate, sqlEndDate);
+        long todayCreditOrderCount = billRepository.countCreditOrdersByDateRange(sqlStartDate, sqlEndDate);
+
+        Double totalAmount = billRepository.sumTotalAmountByDateRange(sqlStartDate, sqlEndDate);
+        Double paidAmount = billRepository.sumPaidAmountByDateRange(sqlStartDate, sqlEndDate);
+        Double creditAmount = billRepository.sumCreditAmountByDateRange(sqlStartDate, sqlEndDate);
+        long completedOrders = billRepository.countPaidOrdersByDateRange(sqlStartDate, sqlEndDate);
+
+        Map<String, Object> kpi = new HashMap<>();
+        kpi.put("todayOrderCount", todayOrderCount);
+        kpi.put("todayCreditOrderCount", todayCreditOrderCount);
+        kpi.put("totalAmount", roundToTwoDecimals(totalAmount));
+        kpi.put("paidAmount", roundToTwoDecimals(paidAmount));
+        kpi.put("creditAmount", roundToTwoDecimals(creditAmount));
+        kpi.put("completedOrders", completedOrders);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("bills", mappedBillsPage);
+        response.put("kpi", kpi);
+
+        return response;
+    }
+
+    private Double roundToTwoDecimals(Double value) {
+        if (value == null) {
+            return 0.0;
+        }
+        return Math.round(value * 100.0) / 100.0;
     }
 
     private BillResponse mapToResponse(BillEntity entity) {
@@ -410,7 +445,8 @@ public class BillServiceImpl implements BillService {
         double currentCreditPaidAmount = bill.getCreditPaidAmount() != null ? bill.getCreditPaidAmount() : 0.0;
         double currentTotalPaid = bill.getTotalPaid() != null ? bill.getTotalPaid() : 0.0;
 
-        if (currentCreditAmount > 0 && (currentTotalPaid + currentCreditAmount > total + 0.01 || Math.abs(currentTotalPaid - total) < 0.01)) {
+        if (currentCreditAmount > 0 && (currentTotalPaid + currentCreditAmount > total + 0.01
+                || Math.abs(currentTotalPaid - total) < 0.01)) {
             currentTotalPaid = Math.max(0.0, total - currentCreditAmount);
         }
 
