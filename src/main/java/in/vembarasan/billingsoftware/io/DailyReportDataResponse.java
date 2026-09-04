@@ -43,4 +43,13 @@ public class DailyReportDataResponse {
     private Double otherIncomesTotal;
 
     private Map<String, Double> machineReading;
+
+    private Map<String, Double> credits;
+    private Double creditsTotal;
+
+    private Double paidSales;
+    private Double creditSales;
+    private Long totalCustomer;
+    private Double cashInHandExpected;
+    private Double paidCredits;
 }

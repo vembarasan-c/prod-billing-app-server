@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @AllArgsConstructor
@@ -30,6 +31,15 @@ public class DailyExpenseResponse {
     private List<DailyExpenseRequest.CashDeposit> cashDeposit;
     private List<DailyExpenseRequest.OtherIncome> otherIncomes;
     private List<DailyExpenseRequest.MachineReading> machineReading;
+    private Map<String, Double> credits;
+    
+    private Double totalSales;
+    private Double paidSales;
+    private Double creditSales;
+    private Long totalCustomer;
+    private Double cashInHandExpected;
+    private Double paidCredits;
+    
     private Timestamp createdAt;
     private Timestamp updatedAt;
 }

@@ -75,6 +75,15 @@ public interface BillRepository extends JpaRepository<BillEntity, Long> {
         @Query("SELECT COALESCE(SUM(b.creditAmount), 0) FROM BillEntity b WHERE b.date = :today AND (b.billStatus = 'CREDIT' OR b.billStatus = 'credit')")
         Double sumTodayCreditBalanceAmount(@Param("today") Date today);
 
+        @Query("SELECT COALESCE(b.customerName, 'Unknown'), COALESCE(SUM(b.creditAmount), 0) FROM BillEntity b WHERE b.date = :today AND (LOWER(b.billStatus) = 'credit' OR b.creditAmount > 0) GROUP BY b.customerName")
+        List<Object[]> sumCustomerWiseCreditAmountForDate(@Param("today") Date today);
+
+        @Query("SELECT COUNT(DISTINCT b.customerName) FROM BillEntity b WHERE b.date = :today")
+        long countDistinctCustomersByDate(@Param("today") Date today);
+
+        @Query("SELECT COALESCE(SUM(b.creditPaidAmount), 0) FROM BillEntity b WHERE CAST(b.updatedAt AS date) = :today")
+        Double sumPaidCreditsByUpdatedAt(@Param("today") Date today);
+
         @Query("SELECT b FROM BillEntity b WHERE b.date = :today")
         Page<BillEntity> findTodayBills(@Param("today") Date today, Pageable pageable);
 

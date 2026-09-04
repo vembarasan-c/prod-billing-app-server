@@ -102,17 +102,22 @@ public class ExpenseController {
 
     @GetMapping("/daily-reports")
     public List<in.vembarasan.billingsoftware.io.DailyReportDataResponse> getDailyReports(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date endDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate endDate) {
         
+        Date sqlStartDate;
+        Date sqlEndDate;
         if (startDate == null || endDate == null) {
             java.time.LocalDate now = java.time.LocalDate.now();
             java.time.LocalDate startOfMonth = now.withDayOfMonth(1);
             java.time.LocalDate endOfMonth = now.withDayOfMonth(now.lengthOfMonth());
-            startDate = Date.valueOf(startOfMonth);
-            endDate = Date.valueOf(endOfMonth);
+            sqlStartDate = Date.valueOf(startOfMonth);
+            sqlEndDate = Date.valueOf(endOfMonth);
+        } else {
+            sqlStartDate = Date.valueOf(startDate);
+            sqlEndDate = Date.valueOf(endDate);
         }
-        return dailyExpenseService.getDailyReports(startDate, endDate);
+        return dailyExpenseService.getDailyReports(sqlStartDate, sqlEndDate);
     }
 
     @GetMapping("/daily-reports/{dailyExpenseId}/pdf")
@@ -160,9 +165,9 @@ public class ExpenseController {
     @GetMapping("/daily-expenses/branch-date")
     public DailyExpenseResponse getDailyExpenseByBranchAndDate(
             @RequestParam String branch,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date date) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate date) {
         try {
-            return dailyExpenseService.getByBranchAndDate(branch, date);
+            return dailyExpenseService.getByBranchAndDate(branch, Date.valueOf(date));
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Daily expense not found");
         }
@@ -187,32 +192,32 @@ public class ExpenseController {
 
     @GetMapping("/daily-expenses/date")
     public Page<DailyExpenseResponse> getDailyExpensesByDate(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date date,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate date,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "date") String sortBy) {
-        return dailyExpenseService.getByDate(date, page, size, sortBy);
+        return dailyExpenseService.getByDate(Date.valueOf(date), page, size, sortBy);
     }
 
     @GetMapping("/daily-expenses/date-range")
     public Page<DailyExpenseResponse> getDailyExpensesByDateRange(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date endDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "date") String sortBy) {
-        return dailyExpenseService.getByDateRange(startDate, endDate, page, size, sortBy);
+        return dailyExpenseService.getByDateRange(Date.valueOf(startDate), Date.valueOf(endDate), page, size, sortBy);
     }
 
     @GetMapping("/daily-expenses/branch/{branch}/date-range")
     public Page<DailyExpenseResponse> getDailyExpensesByBranchAndDateRange(
             @PathVariable String branch,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date endDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "date") String sortBy) {
-        return dailyExpenseService.getByBranchAndDateRange(branch, startDate, endDate, page, size, sortBy);
+        return dailyExpenseService.getByBranchAndDateRange(branch, Date.valueOf(startDate), Date.valueOf(endDate), page, size, sortBy);
     }
 
     @GetMapping("/daily-expenses/last-closed")

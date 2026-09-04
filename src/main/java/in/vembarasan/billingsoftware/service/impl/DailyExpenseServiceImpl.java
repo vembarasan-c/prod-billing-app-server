@@ -71,6 +71,8 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
                 .machineReading(convertToJson(request.getMachineReading()))
                 .build();
 
+        calculateAndSetStats(dailyExpense, lastClosed);
+
         dailyExpense = dailyExpenseRepository.save(dailyExpense);
         return convertToResponse(dailyExpense);
     }
@@ -122,6 +124,12 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
         if (request.getMachineReading() != null) {
             existingExpense.setMachineReading(convertToJson(request.getMachineReading()));
         }
+
+        Double lastClosed = existingExpense.getLastClosed();
+        if (lastClosed == null || lastClosed == 0.0) {
+            lastClosed = getLastClosedAmount(existingExpense.getBranch(), existingExpense.getDate());
+        }
+        calculateAndSetStats(existingExpense, lastClosed);
 
         existingExpense = dailyExpenseRepository.save(existingExpense);
         return convertToResponse(existingExpense);
@@ -202,6 +210,13 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
         response.setBranch(entity.getBranch());
         response.setCashInHand(entity.getCashInHand());
         
+        response.setTotalSales(entity.getTotalSales() != null ? entity.getTotalSales() : 0.0);
+        response.setPaidSales(entity.getPaidSales() != null ? entity.getPaidSales() : 0.0);
+        response.setCreditSales(entity.getCreditSales() != null ? entity.getCreditSales() : 0.0);
+        response.setTotalCustomer(entity.getTotalCustomer() != null ? entity.getTotalCustomer() : 0L);
+        response.setCashInHandExpected(entity.getCashInHandExpected() != null ? entity.getCashInHandExpected() : 0.0);
+        response.setPaidCredits(entity.getPaidCredits() != null ? entity.getPaidCredits() : 0.0);
+        
         Double lastClosed = entity.getLastClosed();
         if (lastClosed == null || lastClosed == 0.0) {
             lastClosed = getLastClosedAmount(entity.getBranch(), entity.getDate());
@@ -210,9 +225,6 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
         response.setShortage(entity.getShortage());
         response.setTotalCash(entity.getTotalCash());
         response.setImage(entity.getImage());
-        
-        Double totalSales = billRepository.sumTotalAmountByDateRange(entity.getDate(), entity.getDate());
-        response.setTotalSales(totalSales != null ? totalSales : 0.0);
         
         // Expenses
         List<DailyExpenseRequest.ExpenseItem> expenses = parseJson(entity.getExpensive(), new TypeReference<>() {});
@@ -302,6 +314,17 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
         }
         response.setMachineReading(machineReadingMap);
         
+        // Credits
+        Map<String, Double> creditsMap = parseJson(entity.getCredits(), new TypeReference<Map<String, Double>>() {});
+        double creditsTotal = 0.0;
+        if (creditsMap != null) {
+            for (Double val : creditsMap.values()) {
+                if (val != null) creditsTotal += val;
+            }
+        }
+        response.setCredits(creditsMap);
+        response.setCreditsTotal(creditsTotal);
+        
         return response;
     }
 
@@ -344,6 +367,7 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
             addMapToPdf(document, "Advance Paid", data.getAdvancePaid(), data.getAdvancePaidTotal());
             addMapToPdf(document, "Cash Deposits", data.getCashDeposit(), data.getCashDepositTotal());
             addMapToPdf(document, "Other Incomes", data.getOtherIncomes(), data.getOtherIncomesTotal());
+            addMapToPdf(document, "Credits", data.getCredits(), data.getCreditsTotal());
             
             if (data.getMachineReading() != null && !data.getMachineReading().isEmpty()) {
                 Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, new Color(44, 62, 80));
@@ -472,6 +496,15 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
                 .cashDeposit(parseJson(entity.getCashDeposit(), new TypeReference<>() {}))
                 .otherIncomes(parseJson(entity.getOtherIncomes(), new TypeReference<>() {}))
                 .machineReading(parseJson(entity.getMachineReading(), new TypeReference<>() {}))
+                .credits(parseJson(entity.getCredits(), new TypeReference<Map<String, Double>>() {}))
+                
+                .totalSales(entity.getTotalSales())
+                .paidSales(entity.getPaidSales())
+                .creditSales(entity.getCreditSales())
+                .totalCustomer(entity.getTotalCustomer())
+                .cashInHandExpected(entity.getCashInHandExpected())
+                .paidCredits(entity.getPaidCredits())
+                
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
@@ -526,6 +559,56 @@ public class DailyExpenseServiceImpl implements DailyExpenseService {
         } catch (Exception e) {
             throw new ApiException("Failed to parse JSON", HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private void calculateAndSetStats(DailyExpenseEntity entity, Double lastClosed) {
+        Date expenseDate = entity.getDate();
+        Double totalSales = billRepository.sumTotalAmountByDateRange(expenseDate, expenseDate);
+        Double paidSales = billRepository.sumPaidAmountByDateRange(expenseDate, expenseDate);
+        Double creditSales = billRepository.sumCreditAmountByDateRange(expenseDate, expenseDate);
+        Long totalCustomer = billRepository.countDistinctCustomersByDate(expenseDate);
+        Double paidCredits = billRepository.sumPaidCreditsByUpdatedAt(expenseDate);
+
+        totalSales = totalSales != null ? totalSales : 0.0;
+        paidSales = paidSales != null ? paidSales : 0.0;
+        creditSales = creditSales != null ? creditSales : 0.0;
+        totalCustomer = totalCustomer != null ? totalCustomer : 0L;
+        paidCredits = paidCredits != null ? paidCredits : 0.0;
+
+        List<DailyExpenseRequest.AdvancePayment> advancePaid = parseJson(entity.getAdvancePaid(), new TypeReference<>() {});
+        List<DailyExpenseRequest.OtherIncome> otherIncomes = parseJson(entity.getOtherIncomes(), new TypeReference<>() {});
+        List<DailyExpenseRequest.ExpenseItem> expenses = parseJson(entity.getExpensive(), new TypeReference<>() {});
+        List<DailyExpenseRequest.OtherExpense> otherExpenses = parseJson(entity.getOtherExpensive(), new TypeReference<>() {});
+        List<DailyExpenseRequest.CashDeposit> cashDeposits = parseJson(entity.getCashDeposit(), new TypeReference<>() {});
+
+        double advancePaidTotal = advancePaid == null ? 0.0 : advancePaid.stream().mapToDouble(i -> i.getAmount() != null ? i.getAmount() : 0.0).sum();
+        double otherIncomeTotal = otherIncomes == null ? 0.0 : otherIncomes.stream().mapToDouble(i -> i.getAmount() != null ? i.getAmount() : 0.0).sum();
+        double expensesTotal = expenses == null ? 0.0 : expenses.stream().mapToDouble(i -> i.getPrice() != null ? i.getPrice() : 0.0).sum();
+        double otherExpensesTotal = otherExpenses == null ? 0.0 : otherExpenses.stream().mapToDouble(i -> i.getAmount() != null ? i.getAmount() : 0.0).sum();
+        double cashDepositTotal = cashDeposits == null ? 0.0 : cashDeposits.stream().mapToDouble(i -> i.getAmount() != null ? i.getAmount() : 0.0).sum();
+
+        Double cashInHandExpected = lastClosed + paidSales + paidCredits + advancePaidTotal + otherIncomeTotal - (expensesTotal + otherExpensesTotal) - cashDepositTotal;
+        Double cashInHand = entity.getCashInHand() != null ? entity.getCashInHand() : 0.0;
+        Double shortage = cashInHandExpected - cashInHand;
+
+        entity.setTotalSales(totalSales);
+        entity.setPaidSales(paidSales);
+        entity.setCreditSales(creditSales);
+        entity.setTotalCustomer(totalCustomer);
+        entity.setPaidCredits(paidCredits);
+        entity.setCashInHandExpected(cashInHandExpected);
+        entity.setShortage(shortage);
+
+        List<Object[]> creditData = billRepository.sumCustomerWiseCreditAmountForDate(expenseDate);
+        Map<String, Double> creditsMap = new HashMap<>();
+        if (creditData != null) {
+            for (Object[] row : creditData) {
+                String customerName = row[0] != null ? row[0].toString() : "Unknown";
+                Double amount = row[1] != null ? ((Number) row[1]).doubleValue() : 0.0;
+                creditsMap.put(customerName, amount);
+            }
+        }
+        entity.setCredits(convertToJson(creditsMap));
     }
 
     private String generateDailyExpenseId() {

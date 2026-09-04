@@ -76,6 +76,28 @@ public class DailyExpenseEntity {
     @Column(name = "machine_reading", columnDefinition = "JSON")
     private String machineReading;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "credits", columnDefinition = "JSON")
+    private String credits;
+
+    @Column(name = "total_sales")
+    private Double totalSales;
+
+    @Column(name = "paid_sales")
+    private Double paidSales;
+
+    @Column(name = "credit_sales")
+    private Double creditSales;
+
+    @Column(name = "total_customer")
+    private Long totalCustomer;
+
+    @Column(name = "cash_in_hand_expected")
+    private Double cashInHandExpected;
+
+    @Column(name = "paid_credits")
+    private Double paidCredits;
+
     @CreationTimestamp
     @Column(updatable = false)
     private Timestamp createdAt;
